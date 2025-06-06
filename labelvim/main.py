@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt5 import QtWidgets
 from layout import Ui_MainWindow
-from PyQt5.QtWidgets import QFileDialog, QApplication
+from PyQt5.QtWidgets import QFileDialog, QSplitter, QVBoxLayout, QWidget
 from labelvim.utils.utils import get_image_list, return_mattching
 from labelvim.utils.annotaion_manager import AnnotationManager
 from labelvim.utils.lablelist_reader import label_list_reader as label_list_manager
@@ -34,15 +34,9 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.config_file_name = 'config.yaml'
         self.config_manager = None
 
-        # Custom Widgets
-        self.FileListWidget = CustomListViewWidget(self.centralwidget)
-        self.FileListWidget.setObjectName("FileListWidget")
-        self.Display = CanvasWidget(self.centralwidget)
+
+        self.Display = CanvasWidget(self.middleWidget)
         self.Display.setObjectName("Display")
-        self.LabelWidget = CustomLabelWidget(self.centralwidget)
-        self.LabelWidget.setObjectName("LabelWidget")
-        self.ObjectLabelListWidget = CustomObjectListWidget(self.centralwidget)
-        self.ObjectLabelListWidget.setObjectName("ObjectLabelListWidget")
 
         # btn action
         self.OpenDirBtn.clicked.connect(self.__load_directory)
@@ -62,7 +56,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.actionOpen.triggered.connect(self.__load_directory)
         self.actionSave_Folder.triggered.connect(self.__save_directory)
-        self.actionDelete_FIle.triggered.connect(self.__delete_file)
+        self.actionDelete_File.triggered.connect(self.__delete_file)
         self.actionNext.triggered.connect(self.__next)
         self.actionPrevious.triggered.connect(self.__previous)
         self.actionSave.triggered.connect(self.__save)
@@ -515,7 +509,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         # action menu disable
         self.actionNext.setEnabled(False)
         self.actionPrevious.setEnabled(False)
-        self.actionDelete_FIle.setEnabled(False)
+        self.actionDelete_File.setEnabled(False)
         self.actionSave.setEnabled(False)
         self.actionZoom_In.setEnabled(False)
         self.actionZoom_Out.setEnabled(False)
@@ -536,7 +530,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         # action menu enable
         self.actionNext.setEnabled(True)
         self.actionPrevious.setEnabled(True)
-        self.actionDelete_FIle.setEnabled(True)
+        self.actionDelete_File.setEnabled(True)
         self.actionZoom_In.setEnabled(True)
         self.actionZoom_Out.setEnabled(True)
         self.actionFit_Windows.setEnabled(True)

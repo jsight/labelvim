@@ -36,19 +36,12 @@ class CustomListViewWidget(QtWidgets.QListView):
         super(CustomListViewWidget, self).__init__(parent)
         self.model = QStandardItemModel()
         self.label_list = []
-        self.set_geometry()
         self.set_model()
         self.set_label_list()
         self.selectionModel().currentChanged.connect(self.get_selected_item)
         self.update_list.connect(self.set_label_list)
         self.index = 0
     
-    def set_geometry(self):
-        """
-        Sets the geometry of the list view widget.
-        """
-        self.setGeometry(QRect(1390, 531, 450, 271))
-
     def set_model(self):
         """
         Sets the data model for the list view and enables updates.
@@ -229,7 +222,6 @@ class CustomLabelWidget(QtWidgets.QListView):
         # label list is empty
         self.label_list = []
         # Set the geometry, model
-        self.set_geometry()
         self.set_model()
         self.delegate = CustomDelegate(self)
         self.setItemDelegate(self.delegate)
@@ -239,13 +231,6 @@ class CustomLabelWidget(QtWidgets.QListView):
         self.update_label_list_slot_receiver.connect(self.__update_list) # Connect the signal to update the label list
         self.model.dataChanged.connect(self.on_data_changed)  # Connect the dataChanged signal
 
-    def set_geometry(self):
-        """
-        Sets the geometry of the list view widget.
-        """
-        # Set the geometry of the list view widget
-        self.setGeometry(QRect(1390, 30, 450, 192))
-    
     def set_model(self):
         """
         Sets the data model for the list view and enables updates.
@@ -435,8 +420,6 @@ class CustomObjectListWidget(QtWidgets.QListView):
         self.category_id = [] # list of category id
         self.object_id = []
         self.object = dict()
-        # Set the geometry, model
-        self.set_geometry()
         self.set_model()
         # handel clicked event
         self.clicked.connect(self.on_item_clicked)
@@ -445,13 +428,6 @@ class CustomObjectListWidget(QtWidgets.QListView):
         self.object_list_slot_receiver.connect(self.__receiver_action) # Connect the signal to update the label list
         # self.model.dataChanged.connect(self.handle_data_changed)  # Connect the dataChanged signal
 
-    def set_geometry(self):
-        """
-        Sets the geometry of the list view widget.
-        """
-        # Set the geometry of the list view widget
-        self.setGeometry(QRect(1390, 250, 450, 251))
-    
     def set_model(self):
         """
         Sets the data model for the list view and enables updates.

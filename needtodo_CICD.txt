@@ -1,9 +1,0 @@
-setup.py
-push to pypi repository
-push to anaconda repository
-push to docker hub
-
-# need automatic testing
-for GUI and Python File
-
-# GitHub Contribution/Release Notes/ ISSUE/ Pull Request/ Automation ETC

@@ -21,8 +21,8 @@ class CanvasWidget(QLabel):
     scale_factor_slot = pyqtSignal(float) # Signal to transmit the scale factor
     def __init__(self, parent=None):
         super(CanvasWidget, self).__init__(parent)
-        self.size_geometry = QRect(70, 0, 1310, 790)
-        self.setGeometry(self.size_geometry)
+        # self.size_geometry = QRect(70, 0, 1310, 790)
+        # self.setGeometry(self.size_geometry)
         self.setFrameShape(QLabel.WinPanel)
         self.setFrameShadow(QLabel.Raised)
         self.setLineWidth(9)
@@ -34,7 +34,7 @@ class CanvasWidget(QLabel):
         self.scroll_area.setWidget(self)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setAlignment(Qt.AlignCenter)
-        self.scroll_area.setGeometry(70, 0, 1321, 801)
+        # self.scroll_area.setGeometry(70, 0, 1321, 801)
         self.scroll_area.setFrameShape(QFrame.Box | QFrame.Plain)
         self.scroll_area.setFrameShadow(QFrame.Sunken)
         
@@ -89,11 +89,13 @@ class CanvasWidget(QLabel):
         # print(f"File Name: {file_name}")
         self.original_pixmap = QPixmap(file_name)
         self.current_pixmap = self.original_pixmap.copy()
-        scale_factor = self.size_geometry.width() / self.current_pixmap.width()
+        # scale_factor = self.size_geometry.width() / self.current_pixmap.width()
+        scale_factor = self.size().width() / self.current_pixmap.width()
         self.max_scale_factor = 4 * scale_factor
         self.min_scale_factor = 0.25 * scale_factor
         # print(f"Max Scale Factor: {self.max_scale_factor}, Min Scale Factor: {self.min_scale_factor}")
-        self.scale_to_fit(self.size_geometry.size())
+        # self.scale_to_fit(self.size_geometry.size())
+        self.scale_to_fit(self.size())
         # self.scale_to_fit(self.size_geometry.size())
         self.update()
     
@@ -148,9 +150,9 @@ class CanvasWidget(QLabel):
         self.scale_image(self.zoom_out_scale_factor)
         self.update()
     
-    def fit_to_window(self):
-        self.scale_to_fit(self.size_geometry.size())
-        self.update()
+    # def fit_to_window(self):
+        # self.scale_to_fit(self.size_geometry.size())
+        # self.update()
     
     def wheelEvent(self, event):
         if event.angleDelta().y() > 0:
