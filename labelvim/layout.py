@@ -9,43 +9,83 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QHBoxLayout, QSplitter, QWidget, QVBoxLayout
+from PyQt5.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QScrollArea,
+    QSplitter,
+    QWidget,
+    QVBoxLayout,
+)
 
-from labelvim.widgets.list_widgets import CustomLabelWidget, CustomListViewWidget, CustomObjectListWidget
+from labelvim.widgets.canvas_widget import CanvasWidget
+from labelvim.widgets.list_widgets import (
+    CustomLabelWidget,
+    CustomListViewWidget,
+    CustomObjectListWidget,
+)
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1850, 873)
+        MainWindow.setMinimumSize(1000, 400)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("icon/Logo.jpeg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(
+            QtGui.QPixmap("icon/Logo.jpeg"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         MainWindow.setWindowIcon(icon)
         MainWindow.setAutoFillBackground(False)
         MainWindow.setAnimated(True)
-        self.main_hbox = QHBoxLayout(MainWindow)
-        self.main_hbox.setSpacing(0)
-        self.main_hbox.setContentsMargins(0, 0, 0, 0)
 
         self.centralwidget = QtWidgets.QWidget()
         self.centralwidget.setObjectName("centralwidget")
-        self.main_hbox.addWidget(self.centralwidget)
-        
+        MainWindow.setCentralWidget(self.centralwidget)
+
+        self.main_hbox = QHBoxLayout(self.centralwidget)
+        self.main_hbox.setSpacing(0)
+        self.main_hbox.setContentsMargins(0, 0, 0, 0)
+
         # Custom Widgets
         self.splitter = QSplitter(self.centralwidget)
+        self.main_hbox.addWidget(self.splitter)
+
         self.leftWidget = QWidget()
         self.leftVBox = QVBoxLayout(self.leftWidget)
         self.leftVBox.setSpacing(3)
         self.splitter.addWidget(self.leftWidget)
 
         self.middleWidget = QWidget()
+        self.middleWidget.setMinimumWidth(800)
+        self.middleLayout = QVBoxLayout(self.middleWidget)
+        self.middleLayout.setContentsMargins(0, 0, 0, 0)
+        self.scroll_area = QScrollArea(self.middleWidget)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setAlignment(QtCore.Qt.AlignCenter)
+        self.scroll_area.setFrameShape(QtWidgets.QFrame.Box | QtWidgets.QFrame.Plain)
+        self.scroll_area.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.canvas_widget = CanvasWidget()
+        self.scroll_area.setWidget(self.canvas_widget)
+        self.middleLayout.addWidget(self.scroll_area)
         self.splitter.addWidget(self.middleWidget)
+
         self.rightWidget = QWidget()
         self.rightVBox = QVBoxLayout(self.rightWidget)
         self.rightVBox.setSpacing(2)
         self.splitter.addWidget(self.rightWidget)
-       
+
+        self.splitter.setSizes(
+            [100, 1000, 200]
+        )  # Left: 100px, Middle: 1000px, Right: 200px
+        self.splitter.setStretchFactor(
+            1, 1
+        )  # Middle widget stretches to take available space
+
         icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap("icon/Open.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon1.addPixmap(
+            QtGui.QPixmap("icon/Open.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.OpenDirBtn = QtWidgets.QPushButton(self.centralwidget)
         self.OpenDirBtn.setText("")
         self.OpenDirBtn.setIcon(icon1)
@@ -53,7 +93,6 @@ class Ui_MainWindow(object):
         self.OpenDirBtn.setObjectName("OpenDirBtn")
         self.leftVBox.addWidget(self.OpenDirBtn)
         self.SaveDirBtn = QtWidgets.QPushButton()
-        #self.SaveDirBtn.setGeometry(QtCore.QRect(0, 60, 71, 61))
         self.SaveDirBtn.setText("")
         self.SaveDirBtn.setIcon(icon1)
         self.SaveDirBtn.setIconSize(QtCore.QSize(50, 50))
@@ -62,7 +101,9 @@ class Ui_MainWindow(object):
         self.NextBtn = QtWidgets.QPushButton(self.centralwidget)
         self.NextBtn.setText("")
         icon2 = QtGui.QIcon()
-        icon2.addPixmap(QtGui.QPixmap("icon/next.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon2.addPixmap(
+            QtGui.QPixmap("icon/next.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.NextBtn.setIcon(icon2)
         self.NextBtn.setIconSize(QtCore.QSize(50, 50))
         self.NextBtn.setObjectName("NextBtn")
@@ -70,7 +111,9 @@ class Ui_MainWindow(object):
         self.PreviousBtn = QtWidgets.QPushButton(self.centralwidget)
         self.PreviousBtn.setText("")
         icon3 = QtGui.QIcon()
-        icon3.addPixmap(QtGui.QPixmap("icon/prev.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon3.addPixmap(
+            QtGui.QPixmap("icon/prev.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.PreviousBtn.setIcon(icon3)
         self.PreviousBtn.setIconSize(QtCore.QSize(50, 50))
         self.PreviousBtn.setObjectName("PreviousBtn")
@@ -78,7 +121,9 @@ class Ui_MainWindow(object):
         self.DeleteFileBtn = QtWidgets.QPushButton(self.centralwidget)
         self.DeleteFileBtn.setText("")
         icon4 = QtGui.QIcon()
-        icon4.addPixmap(QtGui.QPixmap("icon/delete.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon4.addPixmap(
+            QtGui.QPixmap("icon/delete.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.DeleteFileBtn.setIcon(icon4)
         self.DeleteFileBtn.setIconSize(QtCore.QSize(50, 50))
         self.DeleteFileBtn.setObjectName("DeleteFileBtn")
@@ -86,7 +131,9 @@ class Ui_MainWindow(object):
         self.CreateObjectBtn = QtWidgets.QPushButton(self.centralwidget)
         self.CreateObjectBtn.setText("")
         icon5 = QtGui.QIcon()
-        icon5.addPixmap(QtGui.QPixmap("icon/objects.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon5.addPixmap(
+            QtGui.QPixmap("icon/objects.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.CreateObjectBtn.setIcon(icon5)
         self.CreateObjectBtn.setIconSize(QtCore.QSize(50, 50))
         self.CreateObjectBtn.setObjectName("CreateObjectBtn")
@@ -94,7 +141,9 @@ class Ui_MainWindow(object):
         self.EditObjectBtn = QtWidgets.QPushButton(self.centralwidget)
         self.EditObjectBtn.setText("")
         icon6 = QtGui.QIcon()
-        icon6.addPixmap(QtGui.QPixmap("icon/edit.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon6.addPixmap(
+            QtGui.QPixmap("icon/edit.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.EditObjectBtn.setIcon(icon6)
         self.EditObjectBtn.setIconSize(QtCore.QSize(50, 50))
         self.EditObjectBtn.setObjectName("EditObjectBtn")
@@ -102,7 +151,9 @@ class Ui_MainWindow(object):
         self.DeleteAnnotationBtn = QtWidgets.QPushButton(self.centralwidget)
         self.DeleteAnnotationBtn.setText("")
         icon7 = QtGui.QIcon()
-        icon7.addPixmap(QtGui.QPixmap("icon/cancel.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon7.addPixmap(
+            QtGui.QPixmap("icon/cancel.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.DeleteAnnotationBtn.setIcon(icon7)
         self.DeleteAnnotationBtn.setIconSize(QtCore.QSize(50, 50))
         self.DeleteAnnotationBtn.setObjectName("DeleteAnnotationBtn")
@@ -110,7 +161,9 @@ class Ui_MainWindow(object):
         self.ClearAnnotationBtn = QtWidgets.QPushButton(self.centralwidget)
         self.ClearAnnotationBtn.setText("")
         icon8 = QtGui.QIcon()
-        icon8.addPixmap(QtGui.QPixmap("icon/clear-2.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon8.addPixmap(
+            QtGui.QPixmap("icon/clear-2.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.ClearAnnotationBtn.setIcon(icon8)
         self.ClearAnnotationBtn.setIconSize(QtCore.QSize(50, 50))
         self.ClearAnnotationBtn.setObjectName("ClearAnnotationBtn")
@@ -118,7 +171,9 @@ class Ui_MainWindow(object):
         self.ZoomInBtn = QtWidgets.QPushButton(self.centralwidget)
         self.ZoomInBtn.setText("")
         icon9 = QtGui.QIcon()
-        icon9.addPixmap(QtGui.QPixmap("icon/zoom-in.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon9.addPixmap(
+            QtGui.QPixmap("icon/zoom-in.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.ZoomInBtn.setIcon(icon9)
         self.ZoomInBtn.setIconSize(QtCore.QSize(50, 50))
         self.ZoomInBtn.setObjectName("ZoomInBtn")
@@ -126,7 +181,9 @@ class Ui_MainWindow(object):
         self.ZoomOutBtn = QtWidgets.QPushButton(self.centralwidget)
         self.ZoomOutBtn.setText("")
         icon10 = QtGui.QIcon()
-        icon10.addPixmap(QtGui.QPixmap("icon/zoom-out.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon10.addPixmap(
+            QtGui.QPixmap("icon/zoom-out.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.ZoomOutBtn.setIcon(icon10)
         self.ZoomOutBtn.setIconSize(QtCore.QSize(50, 50))
         self.ZoomOutBtn.setObjectName("ZoomOutBtn")
@@ -134,7 +191,9 @@ class Ui_MainWindow(object):
         self.ZoomFitBtn = QtWidgets.QPushButton(self.centralwidget)
         self.ZoomFitBtn.setText("")
         icon11 = QtGui.QIcon()
-        icon11.addPixmap(QtGui.QPixmap("icon/fit-window.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon11.addPixmap(
+            QtGui.QPixmap("icon/fit-window.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.ZoomFitBtn.setIcon(icon11)
         self.ZoomFitBtn.setIconSize(QtCore.QSize(50, 50))
         self.ZoomFitBtn.setObjectName("ZoomFitBtn")
@@ -150,13 +209,14 @@ class Ui_MainWindow(object):
         self.SaveBtn = QtWidgets.QPushButton(self.centralwidget)
         self.SaveBtn.setText("")
         icon12 = QtGui.QIcon()
-        icon12.addPixmap(QtGui.QPixmap("icon/save.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon12.addPixmap(
+            QtGui.QPixmap("icon/save.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.SaveBtn.setIcon(icon12)
         self.SaveBtn.setIconSize(QtCore.QSize(50, 50))
         self.SaveBtn.setObjectName("SaveBtn")
         self.leftVBox.addWidget(self.SaveBtn)
         # self.label_5 = QtWidgets.QLabel(self.centralwidget)
-        # self.label_5.setGeometry(QtCore.QRect(0, 800, 1451, 16))
         # self.label_5.setAutoFillBackground(True)
         # self.label_5.setText("")
         # self.label_5.setObjectName("label_5")
@@ -187,15 +247,15 @@ class Ui_MainWindow(object):
         self.labelFileList.setFont(font)
         self.labelFileList.setIndent(5)
         self.labelFileList.setObjectName("label_8")
-        
+
         self.FileListWidget = CustomListViewWidget()
         self.rightVBox.addWidget(self.FileListWidget)
         self.FileListWidget.setObjectName("FileListWidget")
-       
+
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 1850, 26))
+        # self.menubar.setGeometry(QtCore.QRect(0, 0, 1850, 26))
         self.menubar.setObjectName("menubar")
 
         self.menuFile = QtWidgets.QMenu(self.menubar)
@@ -209,6 +269,10 @@ class Ui_MainWindow(object):
         MainWindow.setMenuBar(self.menubar)
 
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
+        self.modeLabel = QLabel("MODE")
+        self.listCountLabel = QLabel("LIST COUNT")
+        self.statusbar.addWidget(self.listCountLabel)
+        self.statusbar.addPermanentWidget(self.modeLabel)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
 
@@ -221,7 +285,9 @@ class Ui_MainWindow(object):
         self.actionSave_Folder.setObjectName("actionSave_Folder")
         self.actionQuit = QtWidgets.QAction(MainWindow)
         icon15 = QtGui.QIcon()
-        icon15.addPixmap(QtGui.QPixmap("icon/quit.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon15.addPixmap(
+            QtGui.QPixmap("icon/quit.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionQuit.setIcon(icon15)
         self.actionQuit.setObjectName("actionQuit")
         self.actionNext = QtWidgets.QAction(MainWindow)
@@ -233,14 +299,18 @@ class Ui_MainWindow(object):
         self.actionSave_Mask = QtWidgets.QAction(MainWindow)
         self.actionSave_Mask.setCheckable(True)
         icon17 = QtGui.QIcon()
-        icon17.addPixmap(QtGui.QPixmap("icon/yes.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon17.addPixmap(
+            QtGui.QPixmap("icon/yes.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionSave_Mask.setIcon(icon17)
         self.actionSave_Mask.setObjectName("actionSave_Mask")
         self.actionSave_Mask.setIconVisibleInMenu(False)
         self.actionSave_Mask_include_img = QtWidgets.QAction(MainWindow)
         self.actionSave_Mask_include_img.setCheckable(True)
         icon17 = QtGui.QIcon()
-        icon17.addPixmap(QtGui.QPixmap("icon/yes.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon17.addPixmap(
+            QtGui.QPixmap("icon/yes.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionSave_Mask_include_img.setIcon(icon17)
         self.actionSave_Mask_include_img.setObjectName("actionSave_Mask_include_img")
         self.actionSave_Mask_include_img.setIconVisibleInMenu(False)
@@ -248,19 +318,23 @@ class Ui_MainWindow(object):
         self.actionDelete_File.setIcon(icon4)
         self.actionDelete_File.setObjectName("actionDelete_File")
 
-        # Edit action 
+        # Edit action
         self.actionAnnotation_Type = QtWidgets.QAction(MainWindow)
         self.actionAnnotation_Type.setObjectName("actionAnnotation_Type")
         self.actionAnnotation_Type.setCheckable(False)
         annotation_type_con = QtGui.QIcon()
-        annotation_type_con.addPixmap(QtGui.QPixmap("icon/objects.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        annotation_type_con.addPixmap(
+            QtGui.QPixmap("icon/objects.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionAnnotation_Type.setIcon(annotation_type_con)
-        
-        # view action 
+
+        # view action
         self.actionFill = QtWidgets.QAction(MainWindow)
         self.actionFill.setCheckable(True)
         icon25 = QtGui.QIcon()
-        icon25.addPixmap(QtGui.QPixmap("icon/color.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon25.addPixmap(
+            QtGui.QPixmap("icon/color.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionFill.setIcon(icon25)
         self.actionFill.setObjectName("actionFill")
         self.actionZoom_In = QtWidgets.QAction(MainWindow)
@@ -278,7 +352,9 @@ class Ui_MainWindow(object):
         self.actionSave.setObjectName("actionSave")
         self.actionLine_Color = QtWidgets.QAction(MainWindow)
         icon26 = QtGui.QIcon()
-        icon26.addPixmap(QtGui.QPixmap("icon/color-line.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon26.addPixmap(
+            QtGui.QPixmap("icon/color-line.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionLine_Color.setIcon(icon26)
         self.actionLine_Color.setObjectName("actionLine_Color")
 
@@ -302,7 +378,6 @@ class Ui_MainWindow(object):
         self.menuView.addAction(self.actionFit_Windows)
         self.menuView.addAction(self.actionLine_Color)
 
-
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuEdit.menuAction())
         self.menubar.addAction(self.menuView.menuAction())
@@ -318,11 +393,15 @@ class Ui_MainWindow(object):
         self.SaveDirBtn.setToolTip(_translate("MainWindow", "Save Directory"))
         self.NextBtn.setToolTip(_translate("MainWindow", "Next Image"))
         self.PreviousBtn.setToolTip(_translate("MainWindow", "Previous Image"))
-        self.DeleteFileBtn.setToolTip(_translate("MainWindow", "Delete file from file list"))
+        self.DeleteFileBtn.setToolTip(
+            _translate("MainWindow", "Delete file from file list")
+        )
         self.OpenDirBtn.setToolTip(_translate("MainWindow", "Load data from Folder"))
         self.CreateObjectBtn.setToolTip(_translate("MainWindow", "Create"))
         self.EditObjectBtn.setToolTip(_translate("MainWindow", "Edit"))
-        self.DeleteAnnotationBtn.setToolTip(_translate("MainWindow", "Delete selected annotation"))
+        self.DeleteAnnotationBtn.setToolTip(
+            _translate("MainWindow", "Delete selected annotation")
+        )
         self.ClearAnnotationBtn.setToolTip(_translate("MainWindow", "Clear"))
         self.ZoomInBtn.setToolTip(_translate("MainWindow", "Zoom In"))
         self.ZoomOutBtn.setToolTip(_translate("MainWindow", "ZoomOutBtn"))
@@ -347,7 +426,9 @@ class Ui_MainWindow(object):
         self.actionPrevious.setText(_translate("MainWindow", "Previous"))
         self.actionPrevious.setShortcut(_translate("MainWindow", "Ctrl+D"))
         self.actionSave_Mask.setText(_translate("MainWindow", "Save Mask"))
-        self.actionSave_Mask_include_img.setText(_translate("MainWindow", "Save Mask with Image"))
+        self.actionSave_Mask_include_img.setText(
+            _translate("MainWindow", "Save Mask with Image")
+        )
         self.actionDelete_File.setText(_translate("MainWindow", "Delete File"))
         self.actionDelete_File.setShortcut(_translate("MainWindow", "Ctrl+Del"))
         self.actionFit_Windows.setText(_translate("MainWindow", "Fit Windows"))
@@ -367,6 +448,7 @@ class Ui_MainWindow(object):
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()

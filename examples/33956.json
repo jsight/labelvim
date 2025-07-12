@@ -1,0 +1,21 @@
+{
+    "annotations": [
+        {
+            "id": 0,
+            "category_id": 1,
+            "bbox": [
+                266,
+                41,
+                355,
+                241
+            ],
+            "area": 85555,
+            "segmentation": [],
+            "iscrowd": 0
+        }
+    ],
+    "imagePath": "33956.jpg",
+    "imageData": null,
+    "imageHeight": 480,
+    "imageWidth": 640
+}

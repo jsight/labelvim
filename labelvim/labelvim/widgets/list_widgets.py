@@ -221,7 +221,6 @@ class CustomLabelWidget(QtWidgets.QListView):
         self.model = QStringListModel()
         # label list is empty
         self.label_list = []
-        # Set the geometry, model
         self.set_model()
         self.delegate = CustomDelegate(self)
         self.setItemDelegate(self.delegate)

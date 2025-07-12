@@ -2,14 +2,40 @@
     "annotations": [
         {
             "id": 0,
-            "category_id": 0,
+            "category_id": 2,
             "bbox": [
-                282,
-                344,
-                274,
-                36
+                291,
+                341,
+                266,
+                43
             ],
-            "area": 9864,
+            "area": 11438,
+            "segmentation": [],
+            "iscrowd": 0
+        },
+        {
+            "id": 1,
+            "category_id": 3,
+            "bbox": [
+                284,
+                219,
+                136,
+                58
+            ],
+            "area": 7888,
+            "segmentation": [],
+            "iscrowd": 0
+        },
+        {
+            "id": 2,
+            "category_id": 1,
+            "bbox": [
+                1,
+                0,
+                638,
+                385
+            ],
+            "area": 245630,
             "segmentation": [],
             "iscrowd": 0
         }
