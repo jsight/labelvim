@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import QInputDialog, QMessageBox, QMenu, QAction
 
 # External imports
 from labelvim.utils.config import ANNOTATION_TYPE, OBJECT_LIST_ACTION
-from labelvim.widgets.custom_delegets import CustomDelegate
+from labelvim.widgets.custom_delegates import CustomDelegate
 from enum import Enum
 
 class CustomListViewWidget(QtWidgets.QListView):
