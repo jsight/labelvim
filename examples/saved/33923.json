@@ -2,20 +2,20 @@
     "annotations": [
         {
             "id": 0,
-            "category_id": 1,
+            "category_id": 0,
             "bbox": [
-                233,
-                164,
-                178,
-                127
+                6,
+                332,
+                84,
+                18
             ],
-            "area": 22606,
+            "area": 1512,
             "segmentation": [],
             "iscrowd": 0
         }
     ],
-    "imagePath": "33961.jpg",
+    "imagePath": "33923.jpg",
     "imageData": null,
-    "imageHeight": 480,
+    "imageHeight": 426,
     "imageWidth": 640
 }

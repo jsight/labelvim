@@ -102,31 +102,35 @@ class CanvasWidget(QLabel):
         if self.cursor_pos[1] > 1:
             self.cursor_pos = (self.cursor_pos[0], 1)
 
-    def move_up(self):
+    def move_up(self, larger_movement):
         if not self.cursor_pos:
             return
-        self.cursor_pos = (self.cursor_pos[0], self.cursor_pos[1] - .01)
+        step_size = .05 if larger_movement else .01
+        self.cursor_pos = (self.cursor_pos[0], self.cursor_pos[1] - step_size)
         self.enforce_cursor_min_max()
         self.kb_create_mode_move()
 
-    def move_right(self):
+    def move_right(self, larger_movement):
         if not self.cursor_pos:
             return
-        self.cursor_pos = (self.cursor_pos[0] + .01, self.cursor_pos[1])
+        step_size = .05 if larger_movement else .01
+        self.cursor_pos = (self.cursor_pos[0] + step_size, self.cursor_pos[1])
         self.enforce_cursor_min_max()
         self.kb_create_mode_move()
 
-    def move_down(self):
+    def move_down(self, larger_movement):
         if not self.cursor_pos:
             return
-        self.cursor_pos = (self.cursor_pos[0], self.cursor_pos[1] + .01)
+        step_size = .05 if larger_movement else .01
+        self.cursor_pos = (self.cursor_pos[0], self.cursor_pos[1] + step_size)
         self.enforce_cursor_min_max()
         self.kb_create_mode_move()
     
-    def move_left(self):
+    def move_left(self, larger_movement):
         if not self.cursor_pos:
             return
-        self.cursor_pos = (self.cursor_pos[0] - .01, self.cursor_pos[1])
+        step_size = .05 if larger_movement else .01
+        self.cursor_pos = (self.cursor_pos[0] - step_size, self.cursor_pos[1])
         self.enforce_cursor_min_max()
         self.kb_create_mode_move()
 

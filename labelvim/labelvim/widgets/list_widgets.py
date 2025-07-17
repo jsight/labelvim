@@ -56,9 +56,9 @@ class CustomListViewWidget(QtWidgets.QListView):
         Args:
             label_list (list, optional): A list of label names to display. Defaults to an empty list.
         """
-        # print(f"Label List in set label list: {label_list}")
+        print(f"Label List in set label list: {label_list}")
+        self.model.clear()
         if isinstance(label_list, list) and len(label_list) > 0:
-            self.model.clear()  # Clear the model before updating
             self.label_list = label_list
             for file_name in self.label_list:
                 item = QStandardItem(file_name)
@@ -78,10 +78,10 @@ class CustomListViewWidget(QtWidgets.QListView):
             previous (QModelIndex): The index of the previously selected item.
         """
         print(f"Current: {current.row()}")
-        # if current.row() < 0:
-        #     self.reset()
-        #     return
-        self.index = current.row() #self.selectedIndexes()[0].row()
+        current_idx = current.row()
+        if current_idx < 0:
+            current_idx = 0
+        self.index = current_idx #self.selectedIndexes()[0].row()
         self.notify_selected_item.emit(self.model.data(current, Qt.DisplayRole), self.index)
     
     def remove_selected_item(self):

@@ -1,4 +1,5 @@
 from enum import Enum
+import shutil
 import sys
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -117,6 +118,8 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         if event.type() == QtCore.QEvent.KeyRelease:
             #print("received event type:", event.type())
             key = event.key()
+            is_shift_pressed = event.modifiers() & QtCore.Qt.ShiftModifier
+            print("is_shift_pressed:",is_shift_pressed)
             key_text = QtGui.QKeySequence(key).toString()
             #self.modeLabel.setText("Keys:" + key_text + "self.modal_state.state:" + str(self.modal_state.state))
             if key_text == "I" and self.modal_state.state == Mode.NORMAL:
@@ -128,13 +131,13 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.modeLabel.setText("NORMAL")
                 self.canvas_widget.set_edit_mode(False)
             if key_text == "K" or event.key() == QtCore.Qt.Key_Up:
-                self.canvas_widget.move_up()
+                self.canvas_widget.move_up(is_shift_pressed)
             elif key_text == "H" or event.key() == QtCore.Qt.Key_Left:
-                self.canvas_widget.move_left()
+                self.canvas_widget.move_left(is_shift_pressed)
             elif key_text == "L" or event.key() == QtCore.Qt.Key_Right:
-                self.canvas_widget.move_right()
+                self.canvas_widget.move_right(is_shift_pressed)
             elif key_text == "J" or event.key() == QtCore.Qt.Key_Down:
-                self.canvas_widget.move_down()
+                self.canvas_widget.move_down(is_shift_pressed)
             elif key_text == "C":
                 self.__create_object()
                 self.canvas_widget.kb_create_box()
@@ -167,8 +170,11 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         file list widget and enabling or disabling buttons based on the presence of images.
         """
         self.load_dir = QFileDialog.getExistingDirectory(self, "Select a Directory")
+        self.__load_directory_data()
+    
+    def __load_directory_data(self):
         if self.load_dir:
-            self.__reset()
+            # self.__reset()
             self.img_file_list = get_image_list(self.load_dir)
             print(
                 f"Total File in the selected directory {self.load_dir}: {len(self.img_file_list)}"
@@ -389,6 +395,12 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                     )
             self.FileListWidget.remove_selected_item()
 
+    def __save_is_separate_from_load_dir(self):
+        # Normalize paths to handle different separators and relative paths
+        norm_dir1 = os.path.normpath(self.load_dir)
+        norm_dir2 = os.path.normpath(self.save_dir)
+        return norm_dir1 != norm_dir2
+
     def __save(self):
         """
         Saves the current annotation data to a JSON file and updates the internal lists.
@@ -398,16 +410,20 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Ensure the annotation manager is available
         if self.annotation_manager is not None:
+            input_img_file = os.path.join(self.load_dir, self.img_file_list[self.current_index])
             # Update and save the annotation
             self.annotation_manager.update_annotation(annotation_data)
             self.annotation_manager.save_annotation()
+            if self.__save_is_separate_from_load_dir():
+                # If they are separate dirs, move the input file there
+                save_img_file = os.path.join(self.save_dir, os.path.basename(input_img_file))
+                shutil.move(input_img_file, save_img_file)
+                self.__load_directory_data()
             if self.save_mask:
                 import cv2
 
                 # if self.include_img:
-                image_data = cv2.imread(
-                    os.path.join(self.load_dir, self.img_file_list[self.current_index])
-                )
+                image_data = cv2.imread(input_img_file)
                 image_data = cv2.cvtColor(image_data, cv2.COLOR_BGR2RGB)
                 # else:
                 #     image_data = None
