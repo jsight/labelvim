@@ -42,6 +42,7 @@ class LabelPopup(QDialog):
         self.list_widget = QListWidget(self)
         self.list_widget.addItems(items)
         self.list_widget.itemClicked.connect(self.item_selected)
+        self.list_widget.itemActivated.connect(self.item_selected)
         self.layout.addWidget(self.list_widget)
         
         self.add_button = QPushButton("Add", self)

@@ -247,6 +247,7 @@ class CustomLabelWidget(QtWidgets.QListView):
         Args:
             label_list (list, optional): A list of label names to display. Defaults to an empty list.
         """
+        print("Setting label list to:", label_list)
         # Check if the label list is a non-empty list
         if isinstance(label_list, list) and len(label_list) > 0:
             # Clear the model before updating
