@@ -1,0 +1,15 @@
+[project]
+name = "labelvim"
+version = "0.1.0"
+description = "LabelVim: annotation tool"
+requires-python = ">=3.8"
+
+[project.dependencies]
+opencv-python = "*"
+PyQT5 = "*"
+Pillow = "*"
+tqdm = "*"
+pyyaml = "*"
+
+[tool.uv]
+# uv-specific settings can go here 
