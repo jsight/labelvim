@@ -7,7 +7,8 @@ from layout import Ui_MainWindow
 from PyQt5.QtWidgets import QFileDialog, QSplitter, QVBoxLayout, QWidget
 from labelvim.utils.utils import get_image_list, return_mattching
 from labelvim.utils.annotation_manager import AnnotationManager
-from labelvim.utils.lablelist_reader import label_list_reader as label_list_manager
+from labelvim.utils.label_list_reader import label_list_reader
+
 from labelvim.utils.config import ANNOTATION_TYPE, ANNOTATION_MODE, OBJECT_LIST_ACTION
 from labelvim.widgets.task_selection import TaskSelectionDialog
 from labelvim.widgets.canvas_widget import CanvasWidget
@@ -110,7 +111,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.json_writer = None
         #
         self.annotation_manager = None
-        self.label_list_manager = label_list_manager
+        self.label_list_reader = label_list_reader
         self.modal_state = ModalState()
 
     def eventFilter(self, source, event):
@@ -303,19 +304,19 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             ]
 
             # Update the label list manager's path and load the label file if it exists
-            self.label_list_manager.label_list_path = os.path.join(
+            self.label_list_reader.label_list_path = os.path.join(
                 self.save_dir, self.label_file_name
             )
-            # print(f"Label List Path: {self.label_list_manager.label_list_path}")
+            print(f"Label List Path: {self.label_list_reader.label_list_path}")
             if os.path.exists(os.path.join(self.save_dir, self.label_file_name)):
-                self.label_list_manager.read()
+                self.label_list_reader.read()
             else:
-                self.label_list_manager.update(
+                self.label_list_reader.update(
                     []
                 )  # Initialize with an empty list if the file doesn't exist
-            # print(f"Label List: {self.label_list_manager.label_list}")
-            self.update_label_list_to_Label_Widget(self.label_list_manager.label_list)
-            self.update_label_list_to_Display(self.label_list_manager.label_list)
+            # print(f"Label List: {self.label_list_reader.label_list}")
+            self.update_label_list_to_Label_Widget(self.label_list_reader.label_list)
+            self.update_label_list_to_Display(self.label_list_reader.label_list)
 
             # Match JSON files with image files if both lists are available
             if self.json_list and self.img_list:
@@ -433,7 +434,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                     mask_type = "polygon"
                 self.annotation_manager.save_mask(
                     image_data=image_data,
-                    label_map=self.label_list_manager.label_list,
+                    label_map=self.label_list_reader.label_list,
                     include_img=self.include_img,
                     mask_type=mask_type,
                 )
@@ -682,7 +683,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
     ## Signal and Slot
     def update_label_list_to_Display(self, label_list):
         # print(f"update_label_list: {label_list}")
-        self.label_list_manager.update(label_list)
+        self.label_list_reader.update(label_list)
         self.canvas_widget.update_label_list_slot_receiver.emit(label_list)
         self.ObjectLabelListWidget.refresh_list(
             label_list
@@ -691,7 +692,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def update_label_list_to_Label_Widget(self, label_list):
         # print(f"update_label_list: {label_list}")
-        self.label_list_manager.update(label_list)
+        self.label_list_reader.update(label_list)
         self.LabelWidget.update_label_list_slot_receiver.emit(label_list)
         self.ObjectLabelListWidget.refresh_list(
             label_list

@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (
     QCheckBox, QSlider, QWidget, QFormLayout, QFileDialog, QProgressDialog
 )
 from labelvim.utils.config import ANNOTATION_TYPE, ExportType
-from labelvim.utils.lablelist_reader import LabelListReader
+from labelvim.utils.label_list_reader import LabelListReader
 from PyQt5.QtCore import Qt
 from enum import Enum
 import yaml
