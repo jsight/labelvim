@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 import copy
 
-from labelvim.models.shape import Shape
+from labelvim.models.model import Shape
 
 # Command interface for undoable actions
 class Command(ABC):

@@ -33,7 +33,7 @@ class Ui_MainWindow(object):
         MainWindow.setMinimumSize(1000, 400)
         icon = QtGui.QIcon()
         icon.addPixmap(
-            QtGui.QPixmap("icon/Logo.jpeg"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/Logo.jpeg"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         MainWindow.setWindowIcon(icon)
         MainWindow.setAutoFillBackground(False)
@@ -84,7 +84,7 @@ class Ui_MainWindow(object):
 
         icon1 = QtGui.QIcon()
         icon1.addPixmap(
-            QtGui.QPixmap("icon/Open.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/Open.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.OpenDirBtn = QtWidgets.QPushButton(self.centralwidget)
         self.OpenDirBtn.setText("")
@@ -102,7 +102,7 @@ class Ui_MainWindow(object):
         self.NextBtn.setText("")
         icon2 = QtGui.QIcon()
         icon2.addPixmap(
-            QtGui.QPixmap("icon/next.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/next.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.NextBtn.setIcon(icon2)
         self.NextBtn.setIconSize(QtCore.QSize(50, 50))
@@ -112,7 +112,7 @@ class Ui_MainWindow(object):
         self.PreviousBtn.setText("")
         icon3 = QtGui.QIcon()
         icon3.addPixmap(
-            QtGui.QPixmap("icon/prev.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/prev.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.PreviousBtn.setIcon(icon3)
         self.PreviousBtn.setIconSize(QtCore.QSize(50, 50))
@@ -122,7 +122,7 @@ class Ui_MainWindow(object):
         self.DeleteFileBtn.setText("")
         icon4 = QtGui.QIcon()
         icon4.addPixmap(
-            QtGui.QPixmap("icon/delete.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/delete.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.DeleteFileBtn.setIcon(icon4)
         self.DeleteFileBtn.setIconSize(QtCore.QSize(50, 50))
@@ -132,7 +132,7 @@ class Ui_MainWindow(object):
         self.CreateObjectBtn.setText("")
         icon5 = QtGui.QIcon()
         icon5.addPixmap(
-            QtGui.QPixmap("icon/objects.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/objects.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.CreateObjectBtn.setIcon(icon5)
         self.CreateObjectBtn.setIconSize(QtCore.QSize(50, 50))
@@ -142,7 +142,7 @@ class Ui_MainWindow(object):
         self.EditObjectBtn.setText("")
         icon6 = QtGui.QIcon()
         icon6.addPixmap(
-            QtGui.QPixmap("icon/edit.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/edit.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.EditObjectBtn.setIcon(icon6)
         self.EditObjectBtn.setIconSize(QtCore.QSize(50, 50))
@@ -152,7 +152,7 @@ class Ui_MainWindow(object):
         self.DeleteAnnotationBtn.setText("")
         icon7 = QtGui.QIcon()
         icon7.addPixmap(
-            QtGui.QPixmap("icon/cancel.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/cancel.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.DeleteAnnotationBtn.setIcon(icon7)
         self.DeleteAnnotationBtn.setIconSize(QtCore.QSize(50, 50))
@@ -162,7 +162,7 @@ class Ui_MainWindow(object):
         self.ClearAnnotationBtn.setText("")
         icon8 = QtGui.QIcon()
         icon8.addPixmap(
-            QtGui.QPixmap("icon/clear-2.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/clear-2.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.ClearAnnotationBtn.setIcon(icon8)
         self.ClearAnnotationBtn.setIconSize(QtCore.QSize(50, 50))
@@ -172,7 +172,7 @@ class Ui_MainWindow(object):
         self.ZoomInBtn.setText("")
         icon9 = QtGui.QIcon()
         icon9.addPixmap(
-            QtGui.QPixmap("icon/zoom-in.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/zoom-in.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.ZoomInBtn.setIcon(icon9)
         self.ZoomInBtn.setIconSize(QtCore.QSize(50, 50))
@@ -182,7 +182,7 @@ class Ui_MainWindow(object):
         self.ZoomOutBtn.setText("")
         icon10 = QtGui.QIcon()
         icon10.addPixmap(
-            QtGui.QPixmap("icon/zoom-out.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/zoom-out.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.ZoomOutBtn.setIcon(icon10)
         self.ZoomOutBtn.setIconSize(QtCore.QSize(50, 50))
@@ -192,7 +192,7 @@ class Ui_MainWindow(object):
         self.ZoomFitBtn.setText("")
         icon11 = QtGui.QIcon()
         icon11.addPixmap(
-            QtGui.QPixmap("icon/fit-window.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/fit-window.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.ZoomFitBtn.setIcon(icon11)
         self.ZoomFitBtn.setIconSize(QtCore.QSize(50, 50))
@@ -210,7 +210,7 @@ class Ui_MainWindow(object):
         self.SaveBtn.setText("")
         icon12 = QtGui.QIcon()
         icon12.addPixmap(
-            QtGui.QPixmap("icon/save.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/save.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.SaveBtn.setIcon(icon12)
         self.SaveBtn.setIconSize(QtCore.QSize(50, 50))
@@ -286,7 +286,7 @@ class Ui_MainWindow(object):
         self.actionQuit = QtWidgets.QAction(MainWindow)
         icon15 = QtGui.QIcon()
         icon15.addPixmap(
-            QtGui.QPixmap("icon/quit.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/quit.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionQuit.setIcon(icon15)
         self.actionQuit.setObjectName("actionQuit")
@@ -300,7 +300,7 @@ class Ui_MainWindow(object):
         self.actionSave_Mask.setCheckable(True)
         icon17 = QtGui.QIcon()
         icon17.addPixmap(
-            QtGui.QPixmap("icon/yes.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/yes.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionSave_Mask.setIcon(icon17)
         self.actionSave_Mask.setObjectName("actionSave_Mask")
@@ -309,7 +309,7 @@ class Ui_MainWindow(object):
         self.actionSave_Mask_include_img.setCheckable(True)
         icon17 = QtGui.QIcon()
         icon17.addPixmap(
-            QtGui.QPixmap("icon/yes.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/yes.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionSave_Mask_include_img.setIcon(icon17)
         self.actionSave_Mask_include_img.setObjectName("actionSave_Mask_include_img")
@@ -324,7 +324,7 @@ class Ui_MainWindow(object):
         self.actionAnnotation_Type.setCheckable(False)
         annotation_type_con = QtGui.QIcon()
         annotation_type_con.addPixmap(
-            QtGui.QPixmap("icon/objects.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/objects.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionAnnotation_Type.setIcon(annotation_type_con)
 
@@ -333,7 +333,7 @@ class Ui_MainWindow(object):
         self.actionFill.setCheckable(True)
         icon25 = QtGui.QIcon()
         icon25.addPixmap(
-            QtGui.QPixmap("icon/color.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/color.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionFill.setIcon(icon25)
         self.actionFill.setObjectName("actionFill")
@@ -353,7 +353,7 @@ class Ui_MainWindow(object):
         self.actionLine_Color = QtWidgets.QAction(MainWindow)
         icon26 = QtGui.QIcon()
         icon26.addPixmap(
-            QtGui.QPixmap("icon/color-line.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("labelvim/icon/color-line.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionLine_Color.setIcon(icon26)
         self.actionLine_Color.setObjectName("actionLine_Color")
