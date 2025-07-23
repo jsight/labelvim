@@ -8,21 +8,21 @@ from labelvim.models.model import Shape
 # Command interface for undoable actions
 class Command(ABC):
     @abstractmethod
-    def execute(self, image: 'Image') -> None:
+    def execute(self, image: 'UndoTree') -> None:
         pass
 
     @abstractmethod
-    def undo(self, image: 'Image') -> None:
+    def undo(self, image: 'UndoTree') -> None:
         pass
 
 @dataclass
 class AddShapeCommand(Command):
     shape: Shape
 
-    def execute(self, image: 'Image') -> None:
+    def execute(self, image: 'UndoTree') -> None:
         image.shapes.append(copy.deepcopy(self.shape))
 
-    def undo(self, image: 'Image') -> None:
+    def undo(self, image: 'UndoTree') -> None:
         image.shapes.pop()
 
 @dataclass
@@ -30,11 +30,11 @@ class RemoveShapeCommand(Command):
     index: int
     shape: Optional[Shape] = None
 
-    def execute(self, image: 'Image') -> None:
+    def execute(self, image: 'UndoTree') -> None:
         self.shape = copy.deepcopy(image.shapes[self.index])
         image.shapes.pop(self.index)
 
-    def undo(self, image: 'Image') -> None:
+    def undo(self, image: 'UndoTree') -> None:
         image.shapes.insert(self.index, copy.deepcopy(self.shape))
 
 # Undo tree node
@@ -50,7 +50,7 @@ class UndoTreeNode:
             self.children = []
 
 @dataclass
-class Image:
+class UndoTree:
     shapes: List[Shape]
     undo_tree: UndoTreeNode
     current_node: UndoTreeNode

@@ -1,5 +1,5 @@
 import pytest
-from labelvim.models.undo import Image, AddShapeCommand, RemoveShapeCommand
+from labelvim.models.undo import UndoTree, AddShapeCommand, RemoveShapeCommand
 from labelvim.models.model import Rectangle, Point
 
 @pytest.fixture
@@ -19,20 +19,20 @@ def rectangle2():
     )
 
 def test_add_shape(rectangle):
-    img = Image()
+    img = UndoTree()
     img.add_shape(rectangle)
     assert len(img.shapes) == 1
     assert img.shapes[0].name == "rect1"
 
 def test_undo_add_shape(rectangle):
-    img = Image()
+    img = UndoTree()
     img.add_shape(rectangle)
     assert len(img.shapes) == 1
     img.undo()
     assert len(img.shapes) == 0
 
 def test_redo_add_shape(rectangle):
-    img = Image()
+    img = UndoTree()
     img.add_shape(rectangle)
     img.undo()
     assert len(img.shapes) == 0
@@ -41,7 +41,7 @@ def test_redo_add_shape(rectangle):
     assert img.shapes[0].name == "rect1"
 
 def test_remove_shape(rectangle, rectangle2):
-    img = Image()
+    img = UndoTree()
     img.add_shape(rectangle)
     img.add_shape(rectangle2)
     img.remove_shape(0)
@@ -49,7 +49,7 @@ def test_remove_shape(rectangle, rectangle2):
     assert img.shapes[0].name == "rect2"
 
 def test_undo_remove_shape(rectangle, rectangle2):
-    img = Image()
+    img = UndoTree()
     img.add_shape(rectangle)
     img.add_shape(rectangle2)
     img.remove_shape(0)
@@ -60,7 +60,7 @@ def test_undo_remove_shape(rectangle, rectangle2):
     assert img.shapes[1].name == "rect2"
 
 def test_redo_remove_shape(rectangle, rectangle2):
-    img = Image()
+    img = UndoTree()
     img.add_shape(rectangle)
     img.add_shape(rectangle2)
     img.remove_shape(0)
@@ -71,14 +71,14 @@ def test_redo_remove_shape(rectangle, rectangle2):
     assert img.shapes[0].name == "rect2"
 
 def test_undo_at_root(rectangle):
-    img = Image()
+    img = UndoTree()
     assert not img.undo()  # Nothing to undo
     img.add_shape(rectangle)
     img.undo()
     assert not img.undo()  # Back at root
 
 def test_redo_no_child(rectangle):
-    img = Image()
+    img = UndoTree()
     assert not img.redo()  # Nothing to redo
     img.add_shape(rectangle)
     img.undo()
@@ -86,7 +86,7 @@ def test_redo_no_child(rectangle):
     assert not img.redo()  # Only one redo possible
 
 def test_branching(rectangle, rectangle2):
-    img = Image()
+    img = UndoTree()
     img.add_shape(rectangle)
     img.add_shape(rectangle2)
     img.undo()  # Undo add rectangle2
