@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 @dataclass
 class Labels:
@@ -26,7 +26,8 @@ class Point:
 
 @dataclass
 class Shape(ABC):
-    name: str
+    id: Optional[int]
+    category_id: Optional[int]
 
 @dataclass
 class Rectangle(Shape):

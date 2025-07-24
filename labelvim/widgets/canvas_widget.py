@@ -7,6 +7,8 @@ from PyQt5.QtGui import *
 from PyQt5 import QtWidgets, QtCore
 from labelvim.widgets.label_pupop import LabelPopup
 from labelvim.utils.config import ANNOTATION_MODE, OBJECT_LIST_ACTION, ANNOTATION_TYPE
+from labelvim.models.model import Point, Polygon, Rectangle
+from labelvim.models.undo import AddShapeCommand, RemoveShapeCommand, UndoTree
 from enum import Enum
 
 
@@ -45,11 +47,14 @@ class CanvasWidget(QLabel):
         self.setScaledContents(False)
         self.setFocusPolicy(Qt.StrongFocus)
 
+        self.undo_tree = UndoTree()
+
         self.start_point = None
         self.end_point = None
         self.polygon_points = []
         self.polygon_move_point = None
         self.rectangles = []  # List to store drawn rectangles
+
         self.original_pixmap = None
         self.current_pixmap = None
         self.brush_color = QColor(0, 0, 255, 50)
@@ -211,7 +216,8 @@ class CanvasWidget(QLabel):
         self.end_point = None
         self.polygon_points.clear()
         self.polygon_move_point = None
-        self.rectangles.clear()
+        self.undo_tree.clear()
+        # self.rectangles.clear()
         self.update()
 
     def zoom_in(self):
@@ -498,7 +504,8 @@ class CanvasWidget(QLabel):
             print("Delete Key Pressed")
             if key == Qt.Key_Delete:
                 if self.selected_object is not None and self.selected_vertex is None:
-                    self.rectangles.pop(self.selected_object)
+                    self.undo_tree.remove_shape(index)
+                    # self.rectangles.pop(self.selected_object)
                     # emit signal to remove object from the object list
                     self.object_list_action_slot.emit([self.selected_object], OBJECT_LIST_ACTION.REMOVE)
                     self.selected_object = None
@@ -549,7 +556,10 @@ class CanvasWidget(QLabel):
                     painter.drawEllipse(rect.bottomLeft(), 5, 5)
                     painter.drawEllipse(rect.bottomRight(), 5, 5)
                     painter.drawRect(rect)
-                for rectangle in self.rectangles:
+                # for rectangle in self.rectangles:
+                for rectangle in self.undo_tree.shapes:
+                    if not isinstance(rectangle, Rectangle):
+                        continue
                     rect, index = rectangle["bbox"], rectangle["category_id"]
                     painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
                     painter.setBrush(QBrush(self.brush_color))
@@ -596,7 +606,10 @@ class CanvasWidget(QLabel):
                     painter.drawPolygon(polgon)
                     for point in polygon_points:
                         painter.drawEllipse(point, 5, 5)
-                for rectangle in self.rectangles:
+                #for rectangle in self.rectangles:
+                for rectangle in self.undo_tree.shapes:
+                    if not isinstance(rectangle, Rectangle):
+                        continue
                     rect, index, polgons = (
                         rectangle["bbox"],
                         rectangle["category_id"],
@@ -668,17 +681,26 @@ class CanvasWidget(QLabel):
             if label_selected:
                 try:
                     index = self.label_list.index(label_selected)
-                    self.rectangles.append(
-                        {
-                            "category_id": index,
-                            "bbox": [bbox.x(), bbox.y(), bbox.width(), bbox.height()],
-                            "id": len(self.rectangles),
-                            "polygon": [],
-                        }
+                    new_topleft = Point(bbox.x(), bbox.y())
+                    new_bottomright = Point(bbox.x() + bbox.width(), bbox.y() + bbox.height())
+                    new_rectangle = Rectangle(
+                        id=len(self.undo_tree.shapes),
+                        category_id=index,
+                        topleft=new_topleft,
+                        bottomright=new_bottomright
                     )
+                    self.undo_tree.add_shape(new_rectangle)
+                    # self.rectangles.append(
+                        # {
+                            # "category_id": index,
+                            # "bbox": [bbox.x(), bbox.y(), bbox.width(), bbox.height()],
+                            # "id": len(self.rectangles),
+                            # "polygon": [],
+                        # }
+                    # )
                     # emit signal to add object to the object list
                     self.object_list_action_slot.emit(
-                        [self.rectangles[-1]], OBJECT_LIST_ACTION.ADD
+                        [self.undo_tree.shapes[-1]], OBJECT_LIST_ACTION.ADD
                     )
                 except ValueError:
                     print("Label not found in the label list")
@@ -814,7 +836,10 @@ class CanvasWidget(QLabel):
         # mapped_pos = self.map_to_original_image(pos)
 
         # Iterate through all rectangles to find the ones containing the point
-        for rect in self.rectangles:
+        # for rect in self.rectangles:
+        for rect in self.undo_tree.shapes:
+            if not isinstance(rect, Rectangle):
+                continue
             rect_obj = QRect(
                 rect["bbox"][0], rect["bbox"][1], rect["bbox"][2], rect["bbox"][3]
             )
@@ -848,7 +873,10 @@ class CanvasWidget(QLabel):
 
     def find_object_to_edit(self, click_pos):
         # Iterate from top to bottom (reverse order) to find the topmost object
-        for rectangle in reversed(self.rectangles):
+        # for rectangle in reversed(self.rectangles):
+        for rectangle in reversed(self.undo_tree.shapes):
+            if not isinstance(rect, Rectangle):
+                continue
             rect = rectangle["bbox"]
             vertices = [
                 QPoint(rect[0], rect[1]),  # top-left
@@ -871,14 +899,18 @@ class CanvasWidget(QLabel):
 
             dict: The selected rectangle.
         """
-        for rect in self.rectangles:
+        #for rect in self.rectangles:
+        for rect in self.undo_tree.shapes:
+            if not isinstance(rect, Rectangle):
+                continue
             if rect["id"] == self.selected_object:
                 return rect
         return None
 
     def move_vertex(self, vertex_index, new_pos):
         if self.selected_object is not None:
-            for rectangle in self.rectangles:
+            #for rectangle in self.rectangles:
+            for rectangle in self.undo_tree.shapes:
                 if rectangle["id"] == self.selected_object:
                     rect = rectangle["bbox"]
                     if vertex_index == 0:
@@ -1057,7 +1089,8 @@ class CanvasWidget(QLabel):
         """Generate a label selection popup dialog."""
         dialog = LabelPopup(
             self.label_list,
-            self.rectangles,
+            # self.rectangles,
+            self.undo_tree.shapes,
             self.annotation_type,
             self.update_label_list_slot_transmitter,
             self,
@@ -1089,7 +1122,7 @@ class CanvasWidget(QLabel):
             ...     "iscrowd": 0
             ... }]
         """
-        self.rectangles.clear()
+        self.undo_tree.clear()
         for anno in annotation:
             category_id = anno["category_id"]
             id = anno["id"]
@@ -1103,20 +1136,32 @@ class CanvasWidget(QLabel):
                         for i in range(0, len(polygon), 2)
                     ]
                 )
+
             # polygon = QPolygon([QPoint(poly[i], poly[i+1]) for i in range(0, len(poly), 2)])
-            self.rectangles.append(
-                {
-                    "category_id": category_id,
-                    "bbox": bbox,
-                    "id": id,
-                    "polygon": polygons.copy(),
-                }
+            new_topleft = Point(bbox.x(), bbox.y())
+            new_bottomright = Point(bbox.x() + bbox.width(), bbox.y() + bbox.height())
+            new_rectangle = Rectangle(
+                id=len(self.undo_tree.shapes),
+                category_id=index,
+                topleft=new_topleft,
+                bottomright=new_bottomright
             )
-        if len(self.rectangles) > 0:
+            self.undo_tree.add_shape(new_rectangle)
+            #self.rectangles.append(
+            #    {
+            #        "category_id": category_id,
+            #        "bbox": bbox,
+            #        "id": id,
+            #        "polygon": polygons.copy(),
+            #    }
+            #)
+        #if len(self.rectangles) > 0:
+        if len(self.undo_tree.shapes) > 0:
             self.object_list_action_slot.emit(
-                [self.rectangles], OBJECT_LIST_ACTION.UPDATE
+                [self.undo_tree.shapes], OBJECT_LIST_ACTION.UPDATE
             )
-        print(f"Rectangles: {len(self.rectangles)}")
+        #print(f"Rectangles: {len(self.rectangles)}")
+        print(f"Rectangles: {len(self.undo_tree.shapes)}")
         self.update()
 
     def update_annotation_to_json(self):

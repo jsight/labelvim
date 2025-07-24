@@ -97,3 +97,19 @@ def test_branching(rectangle, rectangle2):
     assert img.shapes[1].name == "rect3"
     # Redo should not be possible now (branch was created)
     assert not img.redo() 
+
+def test_redo_after_branching(rectangle, rectangle2):
+    img = UndoTree()
+    img.add_shape(rectangle)
+    img.add_shape(rectangle2)
+    assert len(img.shapes) == 2
+    assert img.shapes[0] == rectangle
+    assert img.shapes[1] == rectangle2
+    img.undo()  # Undo add rectangle2
+    assert len(img.shapes) == 1
+    assert img.shapes[0] == rectangle
+    img.redo()
+    assert len(img.shapes) == 2
+    assert img.shapes[0] == rectangle
+    assert img.shapes[1] == rectangle2
+
