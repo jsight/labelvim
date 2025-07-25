@@ -1,4 +1,4 @@
-token="AIzaSyBmdJQ8Elt_0Butpu1v2uv_K2DQ1taDxHI"
+token=""
 
 prompt="""
 Look carefully at this image and detect the tesla screen, even if only partially visible. Return no objects if the screen isn't
