@@ -560,7 +560,18 @@ class CanvasWidget(QLabel):
                 for rectangle in self.undo_tree.shapes:
                     if not isinstance(rectangle, Rectangle):
                         continue
-                    rect, index = rectangle["bbox"], rectangle["category_id"]
+                    top_left_x = rectangle.topleft.x * self.current_pixmap.width()
+                    top_left_y = rectangle.topleft.y * self.current_pixmap.height()
+                    bottom_right_x = rectangle.bottomright.x * self.current_pixmap.width()
+                    bottom_right_y = rectangle.bottomright.y * self.current_pixmap.height()
+                    index = rectangle.category_id
+                    rect = [
+                        top_left_x,
+                        top_left_y,
+                        bottom_right_x - top_left_x,
+                        bottom_right_y - top_left_y
+                    ]
+                    # rect, index = rectangle["bbox"], rectangle["category_id"]
                     painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
                     painter.setBrush(QBrush(self.brush_color))
                     if (
@@ -681,8 +692,10 @@ class CanvasWidget(QLabel):
             if label_selected:
                 try:
                     index = self.label_list.index(label_selected)
-                    new_topleft = Point(bbox.x(), bbox.y())
-                    new_bottomright = Point(bbox.x() + bbox.width(), bbox.y() + bbox.height())
+                    new_topleft = Point(bbox.x()/self.current_pixmap.width(), bbox.y()/self.current_pixmap.height())
+                    new_bottomright = Point(
+                        (bbox.x() + bbox.width())/self.current_pixmap.width(),
+                        (bbox.y() + bbox.height())/self.current_pixmap.height())
                     new_rectangle = Rectangle(
                         id=len(self.undo_tree.shapes),
                         category_id=index,
@@ -1138,11 +1151,17 @@ class CanvasWidget(QLabel):
                 )
 
             # polygon = QPolygon([QPoint(poly[i], poly[i+1]) for i in range(0, len(poly), 2)])
-            new_topleft = Point(bbox.x(), bbox.y())
-            new_bottomright = Point(bbox.x() + bbox.width(), bbox.y() + bbox.height())
+            new_topleft = Point(
+                bbox[0]/self.current_pixmap.width(),
+                bbox[1]/self.current_pixmap.height()
+            )
+            new_bottomright = Point(
+                (bbox[2] + bbox[0]) / self.current_pixmap.width(),
+                (bbox[3] + bbox[1]) / self.current_pixmap.height()
+            )
             new_rectangle = Rectangle(
                 id=len(self.undo_tree.shapes),
-                category_id=index,
+                category_id=category_id,
                 topleft=new_topleft,
                 bottomright=new_bottomright
             )
@@ -1173,27 +1192,33 @@ class CanvasWidget(QLabel):
         """
         annotations = []
         print(f"to json rectangles: {len(self.rectangles)}")
-        for rect in self.rectangles:
-            category_id = rect["category_id"]
-            id = rect["id"]
+        # for rect in self.rectangles:
+        for rect in self.undo_tree.shapes:
+            if not isinstance(rect, Rectangle):
+                continue
+
+            category_id = rect.category_id
+            id = rect.id
+            legacy_rect = rect.to_legacy_json(self.current_pixmap.width(), self.current_pixmap.height())
             x, y, w, h = (
-                rect["bbox"][0],
-                rect["bbox"][1],
-                rect["bbox"][2],
-                rect["bbox"][3],
+                legacy_rect["bbox"][0],
+                legacy_rect["bbox"][1],
+                legacy_rect["bbox"][2],
+                legacy_rect["bbox"][3],
             )
             area = w * h
             polygons = []
-            for polygon in rect["polygon"]:
-                poly = []
-                for point in polygon:
-                    poly.append(point.x())
-                    poly.append(point.y())
-                polygons.append(poly)
+            # for polygon in rect["polygon"]:
+            #    poly = []
+            #    for point in polygon:
+            #        poly.append(point.x())
+            #        poly.append(point.y())
+            #    polygons.append(poly)
             # for point in rect['polygon']:
             #     polygon.append(point.x())
             #     polygon.append(point.y())
-            segmentation = polygons
+            # segmentation = polygons
+            segmentation = []
             iscrowd = 0
             annotations.append(
                 {

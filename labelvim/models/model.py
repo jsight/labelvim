@@ -38,6 +38,14 @@ class Rectangle(Shape):
         assert self.topleft.x <= self.bottomright.x, "topleft.x must be <= bottomright.x"
         assert self.topleft.y <= self.bottomright.y, "topleft.y must be <= bottomright.y"
 
+    def to_legacy_json(self, img_width, img_height):
+        return { "bbox": [
+            self.topleft.x * img_width,
+            self.topleft.y * img_height,
+            (self.bottomright.x * img_width) - (self.topleft.x * img_width),
+            (self.bottomright.y * img_height) - (self.topleft.y * img_height),
+        ]}
+
     def edit(self) -> None:
         # Placeholder for editing implementation
         pass
