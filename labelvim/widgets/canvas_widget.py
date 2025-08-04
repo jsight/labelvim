@@ -360,7 +360,6 @@ class CanvasWidget(QLabel):
                             # print("More than 2 points")
                             if self.distance(self.polygon_points[0], new_map) < 10:
                                 # print("Last Point")
-                                self.polygon_move_point = None
                                 self.update_rectangle(poly=self.polygon_points)
                                 self.polygon_points.clear()
                             else:
@@ -501,8 +500,8 @@ class CanvasWidget(QLabel):
             print("Key text:",key_text)
 
         if self.annotation_type == ANNOTATION_TYPE.POLYGON:
-            print("Delete Key Pressed")
             if key == Qt.Key_Delete:
+                print("Delete Key Pressed")
                 if self.selected_object is not None and self.selected_vertex is None:
                     self.undo_tree.remove_shape(index)
                     # self.rectangles.pop(self.selected_object)
@@ -728,24 +727,50 @@ class CanvasWidget(QLabel):
                         # print(f"Polygon: {poly}")
                         # print(f"Polygon: {polygon}")
                         bbox = polygon.boundingRect()
-                        # print(f"Bounding Box: {bbox}")
-                        self.rectangles.append(
-                            {
-                                "category_id": index,
-                                "bbox": [
-                                    bbox.x(),
-                                    bbox.y(),
-                                    bbox.width(),
-                                    bbox.height(),
-                                ],
-                                "id": len(self.rectangles),
-                                "polygon": [poly.copy()],
-                            }
+                        new_topleft = Point(bbox.x()/self.current_pixmap.width(), bbox.y()/self.current_pixmap.height())
+                        new_bottomright = Point(
+                            (bbox.x() + bbox.width())/self.current_pixmap.width(),
+                            (bbox.y() + bbox.height())/self.current_pixmap.height())
+                        new_rectangle = Rectangle(
+                            id=len(self.undo_tree.shapes),
+                            category_id=index,
+                            topleft=new_topleft,
+                            bottomright=new_bottomright
                         )
-                        # emit signal to add object to the object list
+                        new_points = [
+                            Point(p.x()/self.current_pixmap.width(),p.y()/self.current_pixmap.height())
+                            for p in poly
+                        ]
+                        new_polygon = Polygon(
+                            id=0,
+                            category_id=index,
+                            points=new_points,
+                            rectangle=new_rectangle
+                        )
+                        print("Adding new polygon: ", new_polygon)
+                        self.undo_tree.add_shape(new_polygon)
                         self.object_list_action_slot.emit(
-                            [self.rectangles[-1]], OBJECT_LIST_ACTION.ADD
+                            [self.undo_tree.shapes[-1]], OBJECT_LIST_ACTION.ADD
                         )
+                        # print(f"Bounding Box: {bbox}")
+                        #self.rectangles.append(
+                        #    {
+                        #        "category_id": index,
+                        #        "bbox": [
+                        #            bbox.x(),
+                        #            bbox.y(),
+                        #            bbox.width(),
+                        #            bbox.height(),
+                        #        ],
+                        #        "id": len(self.rectangles),
+                        #        "polygon": [poly.copy()],
+                        #    }
+                        #)
+                        #print("Adding polygon:", self.rectangles[-1])
+                        # emit signal to add object to the object list
+                        #self.object_list_action_slot.emit(
+                        #    [self.rectangles[-1]], OBJECT_LIST_ACTION.ADD
+                        #)
                     else:
                         # print(f"Selected ID: {selected_id}")
                         # print(f"rectangles: {self.rectangles[selected_id]}")

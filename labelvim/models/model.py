@@ -56,6 +56,7 @@ class Rectangle(Shape):
 
 @dataclass
 class Polygon(Shape):
+    rectangle: Rectangle
     points: List[Point]
 
     def edit(self) -> None:
