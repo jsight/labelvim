@@ -540,7 +540,6 @@ class CanvasWidget(QLabel):
                 # print(f"self.rectangles: {self.rectangles}")
                 if self.start_point and self.end_point:
                     # painter.setPen(QPen(QColor(0, 0, 255), 2, Qt.SolidLine))
-
                     start_point = QPoint(
                         offset_x + int(self.start_point.x() * self.scale_factor),
                         offset_y + int(self.start_point.y() * self.scale_factor),
@@ -617,59 +616,51 @@ class CanvasWidget(QLabel):
                     for point in polygon_points:
                         painter.drawEllipse(point, 5, 5)
                 #for rectangle in self.rectangles:
-                for rectangle in self.undo_tree.shapes:
-                    if not isinstance(rectangle, Rectangle):
+                for shape in self.undo_tree.shapes:
+                    if not isinstance(shape, Polygon):
                         continue
-                    rect, index, polgons = (
-                        rectangle["bbox"],
-                        rectangle["category_id"],
-                        rectangle["polygon"],
+                    polygon = shape
+                    print("Should render polygon now: ", polygon)
+                    top_left_x = shape.rectangle.topleft.x * self.current_pixmap.width()
+                    top_left_y = shape.rectangle.topleft.y * self.current_pixmap.height()
+                    bottom_right_x = shape.rectangle.bottomright.x * self.current_pixmap.width()
+                    bottom_right_y = shape.rectangle.bottomright.y * self.current_pixmap.height()
+                    index = polygon.category_id
+                    rect = [
+                        top_left_x,
+                        top_left_y,
+                        bottom_right_x - top_left_x,
+                        bottom_right_y - top_left_y
+                    ]
+                    print("Rect:",rect)
+                    print("Index:",index)
+                    painter.drawPolygon(
+                        QPolygon(
+                            [
+                                QPoint(
+                                    offset_x + int(point.scaled_x(self.current_pixmap.width()) * self.scale_factor),
+                                    offset_y + int(point.scaled_y(self.current_pixmap.height()) * self.scale_factor),
+                                )
+                                for point in polygon.points
+                            ]
+                        )
                     )
-                    # print(f"Polygon: {polgon}")
-                    painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
-                    painter.setBrush(QBrush(self.brush_color))
-                    if (
-                        self.selected_object is not None
-                        and self.selected_object == rectangle["id"]
-                    ):
-                        painter.setBrush(QBrush(self.selected_rectangle_brush_color))
+                    for point in polygon.points:
+                        painter.drawEllipse(
+                            QPoint(
+                                offset_x + int(point.scaled_x(self.current_pixmap.width()) * self.scale_factor),
+                                offset_y + int(point.scaled_y(self.current_pixmap.height()) * self.scale_factor),
+                            ),
+                            5,
+                            5,
+                        )
+                    text_label = self.label_list[index]
                     rect = QRect(
                         offset_x + int(rect[0] * self.scale_factor),
                         offset_y + int(rect[1] * self.scale_factor),
                         int(rect[2] * self.scale_factor),
                         int(rect[3] * self.scale_factor),
                     )
-                    painter.drawRect(rect)
-                    painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
-                    painter.setBrush(QBrush(self.polygon_brush_color))
-                    if (
-                        self.selected_object is not None
-                        and self.selected_object == rectangle["id"]
-                    ):
-                        painter.setBrush(QBrush(self.selected_polygon_brush_color))
-                    for polgon in polgons:  # modified as per polygon list
-                        # print(f"Polygon: {polgon}")
-                        painter.drawPolygon(
-                            QPolygon(
-                                [
-                                    QPoint(
-                                        offset_x + int(point.x() * self.scale_factor),
-                                        offset_y + int(point.y() * self.scale_factor),
-                                    )
-                                    for point in polgon
-                                ]
-                            )
-                        )
-                        for point in polgon:
-                            painter.drawEllipse(
-                                QPoint(
-                                    offset_x + int(point.x() * self.scale_factor),
-                                    offset_y + int(point.y() * self.scale_factor),
-                                ),
-                                5,
-                                5,
-                            )
-                    text_label = self.label_list[index]
                     painter.setPen(QPen(self.title_pen_color, 2, Qt.SolidLine))
                     painter.setBrush(QBrush(QColor(255, 255, 255, 75)))
                     painter.drawRect(
@@ -679,7 +670,6 @@ class CanvasWidget(QLabel):
                     painter.drawText(
                         rect.topLeft().x(), rect.topLeft().y() - 5, text_label
                     )
-
         self.update()
 
     def update_rectangle(self, **kwargs):  # need to rename later

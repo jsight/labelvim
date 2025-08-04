@@ -20,6 +20,12 @@ class Point:
     y: float
     selected: bool = False
 
+    def scaled_x(self, scale_factor):
+        return self.x * scale_factor
+
+    def scaled_y(self, scale_factor):
+        return self.y * scale_factor
+
     def __post_init__(self):
         assert 0 <= self.x <= 1, "x must be between 0 and 1"
         assert 0 <= self.y <= 1, "y must be between 0 and 1"
