@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QInputDialog, QMessageBox, QMenu, QAction
 from labelvim.utils.config import ANNOTATION_TYPE, OBJECT_LIST_ACTION
 from labelvim.widgets.custom_delegates import CustomDelegate
 from enum import Enum
+from labelvim.models.model import Shape
 
 class CustomListViewWidget(QtWidgets.QListView):
     """
@@ -447,11 +448,12 @@ class CustomObjectListWidget(QtWidgets.QListView):
                 self.object = {label['id']: label["category_id"] for label in data}
                 self.set_label_list(category_id=category_id, object_id=object_id)
         elif action == OBJECT_LIST_ACTION.ADD:
-            if isinstance(data, dict):
-                if data['id'] in self.object:
+            #if isinstance(data, dict):
+            if isinstance(data, Shape):
+                if data.id in self.object:
                     return
-                self.object[data['id']] = data["category_id"]
-                self.add_label(category_id = data["category_id"], object_id = data['id'])
+                self.object[data.id] = data.category_id
+                self.add_label(category_id = data.category_id, object_id = data.id)
         elif action == OBJECT_LIST_ACTION.CLEAR:
             self.clear_list()
         elif action == OBJECT_LIST_ACTION.REMOVE:

@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5 import QtWidgets, QtCore
-from labelvim.widgets.label_pupop import LabelPopup
+from labelvim.widgets.label_popup import LabelPopup
 from labelvim.utils.config import ANNOTATION_MODE, OBJECT_LIST_ACTION, ANNOTATION_TYPE
 from labelvim.models.model import Point, Polygon, Rectangle
 from labelvim.models.undo import AddShapeCommand, RemoveShapeCommand, UndoTree
@@ -147,6 +147,7 @@ class CanvasWidget(QLabel):
 
     def load_image(self, file_name):
         self.clear_annotation()
+        print("Setting selected_object to none")
         self.selected_object = None
         # emit signal to clear the object list
         self.object_list_action_slot.emit([None], OBJECT_LIST_ACTION.CLEAR)
@@ -325,9 +326,11 @@ class CanvasWidget(QLabel):
                         if start_point:
                             self.start_point = start_point
                     if self.annotation_mode == ANNOTATION_MODE.EDIT:
+                        print("Resetting selected object, but was previously:", self.selected_object)
                         self.selected_object, self.selected_vertex = (
                             self.find_object_to_edit(click_pos)
                         )
+                        print("Resetting selected object, new value:", self.selected_object)
                         print(
                             f"Selected Rectangle: {self.selected_object}, Selected Vertex: {self.selected_vertex}"
                         )
@@ -366,6 +369,7 @@ class CanvasWidget(QLabel):
                                 # print("More than 2 points")
                                 self.polygon_points.append(new_map)
                     elif self.annotation_mode == ANNOTATION_MODE.EDIT:
+                        print("Resetting selected object in line 372ish:",self.selected_object)
                         (
                             self.selected_object,
                             self.selected_object_subset,
@@ -486,8 +490,8 @@ class CanvasWidget(QLabel):
                 ):
                     self.moving_object = False
                 self.last_mouse_position = None
-        self.selected_object = None
-        self.selected_object_subset = None
+        #self.selected_object = None
+        #self.selected_object_subset = None
         self.update()
 
     def keyPressEvent(self, event):
@@ -558,10 +562,11 @@ class CanvasWidget(QLabel):
                 for rectangle in self.undo_tree.shapes:
                     if not isinstance(rectangle, Rectangle):
                         continue
-                    top_left_x = rectangle.topleft.x * self.current_pixmap.width()
-                    top_left_y = rectangle.topleft.y * self.current_pixmap.height()
-                    bottom_right_x = rectangle.bottomright.x * self.current_pixmap.width()
-                    bottom_right_y = rectangle.bottomright.y * self.current_pixmap.height()
+                    rectangle = rectangle.to_scaled_rectangle(self.current_pixmap.width(), self.current_pixmap.height())
+                    top_left_x = rectangle.topleft.x
+                    top_left_y = rectangle.topleft.y
+                    bottom_right_x = rectangle.bottomright.x
+                    bottom_right_y = rectangle.bottomright.y
                     index = rectangle.category_id
                     rect = [
                         top_left_x,
@@ -572,9 +577,10 @@ class CanvasWidget(QLabel):
                     # rect, index = rectangle["bbox"], rectangle["category_id"]
                     painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
                     painter.setBrush(QBrush(self.brush_color))
+                    #print("self.selected_object:", self.selected_object)
                     if (
                         self.selected_object is not None
-                        and self.selected_object == rectangle["id"]
+                        and self.selected_object == rectangle.id
                     ):
                         painter.setBrush(QBrush(self.selected_rectangle_brush_color))
                     rect = QRect(
@@ -584,7 +590,6 @@ class CanvasWidget(QLabel):
                         int(rect[3] * self.scale_factor),
                     )
                     text_label = self.label_list[index]
-                    #print("topleft:",rect.topLeft())
                     painter.drawEllipse(rect.topLeft(), 5, 5)
                     painter.drawEllipse(rect.topRight(), 5, 5)
                     painter.drawEllipse(rect.bottomLeft(), 5, 5)
@@ -620,7 +625,6 @@ class CanvasWidget(QLabel):
                     if not isinstance(shape, Polygon):
                         continue
                     polygon = shape
-                    print("Should render polygon now: ", polygon)
                     top_left_x = shape.rectangle.topleft.x * self.current_pixmap.width()
                     top_left_y = shape.rectangle.topleft.y * self.current_pixmap.height()
                     bottom_right_x = shape.rectangle.bottomright.x * self.current_pixmap.width()
@@ -632,8 +636,6 @@ class CanvasWidget(QLabel):
                         bottom_right_x - top_left_x,
                         bottom_right_y - top_left_y
                     ]
-                    print("Rect:",rect)
-                    print("Index:",index)
                     painter.drawPolygon(
                         QPolygon(
                             [
@@ -692,14 +694,6 @@ class CanvasWidget(QLabel):
                         bottomright=new_bottomright
                     )
                     self.undo_tree.add_shape(new_rectangle)
-                    # self.rectangles.append(
-                        # {
-                            # "category_id": index,
-                            # "bbox": [bbox.x(), bbox.y(), bbox.width(), bbox.height()],
-                            # "id": len(self.rectangles),
-                            # "polygon": [],
-                        # }
-                    # )
                     # emit signal to add object to the object list
                     self.object_list_action_slot.emit(
                         [self.undo_tree.shapes[-1]], OBJECT_LIST_ACTION.ADD
@@ -708,7 +702,7 @@ class CanvasWidget(QLabel):
                     print("Label not found in the label list")
         if poly:
             label_selected, selected_id = self.select_label_from_label_list()
-            print(f"Selected Label: {label_selected}")
+            print(f"Selected Label: {label_selected} {selected_id}")
             if label_selected:
                 try:
                     if selected_id == -1:
@@ -742,36 +736,11 @@ class CanvasWidget(QLabel):
                         self.object_list_action_slot.emit(
                             [self.undo_tree.shapes[-1]], OBJECT_LIST_ACTION.ADD
                         )
-                        # print(f"Bounding Box: {bbox}")
-                        #self.rectangles.append(
-                        #    {
-                        #        "category_id": index,
-                        #        "bbox": [
-                        #            bbox.x(),
-                        #            bbox.y(),
-                        #            bbox.width(),
-                        #            bbox.height(),
-                        #        ],
-                        #        "id": len(self.rectangles),
-                        #        "polygon": [poly.copy()],
-                        #    }
-                        #)
-                        #print("Adding polygon:", self.rectangles[-1])
-                        # emit signal to add object to the object list
-                        #self.object_list_action_slot.emit(
-                        #    [self.rectangles[-1]], OBJECT_LIST_ACTION.ADD
-                        #)
                     else:
-                        # print(f"Selected ID: {selected_id}")
-                        # print(f"rectangles: {self.rectangles[selected_id]}")
                         rectanlge = self.rectangles[selected_id]
                         bbox_c = rectanlge["bbox"]
-                        # print(f"Bounding Box: {bbox_c}")
                         bbox = QRect(bbox_c[0], bbox_c[1], bbox_c[2], bbox_c[3])
-                        # poly_prev = self.rectangles[selected_id]["polygon"]
                         self.rectangles[selected_id]["polygon"].append(poly.copy())
-                        # print(f"Polygons: {len(self.rectangles[selected_id]['polygon'])}")
-                        # print(f"Polygons: {self.rectangles[selected_id]['polygon']}")
                         polygon = QPolygon(poly.copy())
                         bbox_1 = polygon.boundingRect()
                         bbox = bbox.united(bbox_1)
@@ -868,23 +837,27 @@ class CanvasWidget(QLabel):
         for rect in self.undo_tree.shapes:
             if not isinstance(rect, Rectangle):
                 continue
+            rect = rect.to_scaled_rectangle(self.current_pixmap.width(), self.current_pixmap.height())
             rect_obj = QRect(
-                rect["bbox"][0], rect["bbox"][1], rect["bbox"][2], rect["bbox"][3]
+                int(rect.topleft.x), int(rect.topleft.y),
+                int(rect.bottomright.x-rect.topleft.x), int(rect.bottomright.y-rect.topleft.y)
+                #rect["bbox"][0], rect["bbox"][1], rect["bbox"][2], rect["bbox"][3]
             )
             if rect_obj.contains(pos):
                 selected_rectangles.append(rect)
-                selected_rectangles_id.append(rect["id"])
+                selected_rectangles_id.append(rect.id)
 
         # If multiple rectangles contain the point, find the one closest to the point
         if selected_rectangles:
             closest_rect = min(
                 selected_rectangles,
-                key=lambda rect: self.distance_to_center(pos, rect["bbox"]),
+                key=lambda rect: self.distance_to_center(pos, rect),
             )
-            self.selected_object = closest_rect["id"]
+            print("selecting:",closest_rect.id)
+            self.selected_object = closest_rect.id
 
     @staticmethod
-    def distance_to_center(pos, bbox):
+    def distance_to_center(pos, rect):
         """
         Calculate the distance from a point to the center of a bounding box.
 
@@ -895,28 +868,31 @@ class CanvasWidget(QLabel):
         Returns:
             float: The distance from the point to the center of the bounding box.
         """
-        center_x = bbox[0] + bbox[2] / 2
-        center_y = bbox[1] + bbox[3] / 2
+        center_x = rect.topleft.x + rect.bottomright.x / 2
+        center_y = rect.topleft.y + rect.bottomright.y / 2
         return (pos.x() - center_x) ** 2 + (pos.y() - center_y) ** 2
 
     def find_object_to_edit(self, click_pos):
         # Iterate from top to bottom (reverse order) to find the topmost object
         # for rectangle in reversed(self.rectangles):
         for rectangle in reversed(self.undo_tree.shapes):
-            if not isinstance(rect, Rectangle):
+            if not isinstance(rectangle, Rectangle):
                 continue
-            rect = rectangle["bbox"]
+            #rect = rectangle["bbox"]
+            rect = rectangle.to_scaled_rectangle(self.current_pixmap.width(), self.current_pixmap.height())
+
             vertices = [
-                QPoint(rect[0], rect[1]),  # top-left
-                QPoint(rect[0] + rect[2], rect[1]),  # top-right
-                QPoint(rect[0], rect[1] + rect[3]),  # bottom-left
-                QPoint(rect[0] + rect[2], rect[1] + rect[3]),
+                QPoint(int(rect.topleft.x), int(rect.topleft.y)),  # top-left
+                QPoint(int(rect.bottomright.x), int(rect.topleft.y)),  # top-right
+                QPoint(int(rect.topleft.x), int(rect.bottomright.y)), # bottom-left
+                QPoint(int(rect.bottomright.x), int(rect.bottomright.y))
             ]  # bottom-right
             mapped_pos = self.map_to_original_image(click_pos)
             for i, vertex in enumerate(vertices):
                 # scaled_vertex = self.scale_point(vertex)
                 if self.distance(vertex, mapped_pos) <= 20:
-                    return rectangle["id"], i
+                    print("Selecting rect:",rectangle.id)
+                    return rectangle.id, i
         return None, None
 
     def get_selected_object(self):
@@ -931,7 +907,8 @@ class CanvasWidget(QLabel):
         for rect in self.undo_tree.shapes:
             if not isinstance(rect, Rectangle):
                 continue
-            if rect["id"] == self.selected_object:
+            if rect.id == self.selected_object:
+                print("returning selected:",rect)
                 return rect
         return None
 
@@ -939,7 +916,7 @@ class CanvasWidget(QLabel):
         if self.selected_object is not None:
             #for rectangle in self.rectangles:
             for rectangle in self.undo_tree.shapes:
-                if rectangle["id"] == self.selected_object:
+                if rectangle.id == self.selected_object:
                     rect = rectangle["bbox"]
                     if vertex_index == 0:
                         delta_w = rect[0] - new_pos.x()
@@ -1000,6 +977,7 @@ class CanvasWidget(QLabel):
             self.selected_object = selected_polygon_id[
                 selected_polygon.index(closest_polygon)
             ]
+            print("Selecting polygon:", self.selected_object)
             self.selected_object_subset = selected_polygon_id_subset[
                 selected_polygon.index(closest_polygon)
             ]
@@ -1258,17 +1236,20 @@ class CanvasWidget(QLabel):
             self.annotation_mode = ANNOTATION_MODE.NONE
         elif self.annotation_mode == ANNOTATION_MODE.DELETE:
             if self.selected_object is not None:
-                for idx, rect in enumerate(self.rectangles):
-                    if rect["id"] == self.selected_object:
-                        self.rectangles.pop(idx)
+                for idx, rect in enumerate(self.undo_tree.shapes):
+                    if rect.id == self.selected_object:
+                        #self.rectangles.pop(idx)
+                        self.undo_tree.remove_shape(idx)
+                        print("Setting selected object to None")
                         self.selected_object = None
                         break
                 # update the new object id
-                for idx, rect in enumerate(self.rectangles):
-                    rect["id"] = idx
+                #for idx, rect in enumerate(self.rectangles):
+                #   rect["id"] = idx
                 self.object_list_action_slot.emit(
                     [self.rectangles], OBJECT_LIST_ACTION.REMOVE
                 )
+                print("Setting selected object to None")
                 self.selected_object = None
             self.annotation_mode = ANNOTATION_MODE.CREATE
         elif self.annotation_mode == ANNOTATION_MODE.EDIT:
@@ -1281,6 +1262,8 @@ class CanvasWidget(QLabel):
 
     def select_object(self, object_id):
         if object_id == -1:
+            print("Setting selected object to None")
             self.selected_object = None
         else:
+            print("Setting selected object to ", object_id)
             self.selected_object = object_id

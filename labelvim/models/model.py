@@ -15,11 +15,13 @@ class Labels:
         return self.labels.index(label)
 
 @dataclass
-class Point:
+class BasePoint:
     x: float
     y: float
     selected: bool = False
 
+@dataclass
+class Point(BasePoint):
     def scaled_x(self, scale_factor):
         return self.x * scale_factor
 
@@ -31,6 +33,12 @@ class Point:
         assert 0 <= self.y <= 1, "y must be between 0 and 1"
 
 @dataclass
+class ScaledPoint(BasePoint):
+    def __init__(self, original_point, img_width, img_height):
+        self.x = original_point.x * img_width
+        self.y = original_point.y * img_height
+
+@dataclass
 class Shape(ABC):
     id: Optional[int]
     category_id: Optional[int]
@@ -39,6 +47,14 @@ class Shape(ABC):
 class Rectangle(Shape):
     topleft: Point
     bottomright: Point
+
+    def to_scaled_rectangle(self, img_width, img_height):
+        return Rectangle(
+            id=self.id,
+            category_id=self.category_id,
+            topleft=ScaledPoint(self.topleft, img_width, img_height),
+            bottomright=ScaledPoint(self.bottomright, img_width, img_height),
+        )
 
     def __post_init__(self):
         assert self.topleft.x <= self.bottomright.x, "topleft.x must be <= bottomright.x"
