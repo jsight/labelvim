@@ -443,9 +443,9 @@ class CustomObjectListWidget(QtWidgets.QListView):
         data = data[0]
         if action == OBJECT_LIST_ACTION.UPDATE:
             if isinstance(data, list):
-                category_id = [label["category_id"] for label in data]
-                object_id = [label['id'] for label in data]
-                self.object = {label['id']: label["category_id"] for label in data}
+                category_id = [label.category_id for label in data]
+                object_id = [label.id for label in data]
+                self.object = {label.id: label.category_id for label in data}
                 self.set_label_list(category_id=category_id, object_id=object_id)
         elif action == OBJECT_LIST_ACTION.ADD:
             #if isinstance(data, dict):

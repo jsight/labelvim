@@ -918,8 +918,6 @@ class CanvasWidget(QLabel):
                 rectangle = cast(Rectangle, rectangle)
                 if rectangle.id == self.selected_object:
                     if vertex_index == 0:
-                        delta_w = rectangle.topleft.x - new_pos.x()
-                        delta_h = rectangle.topleft.y - new_pos.y()
                         new_topleft_x = new_pos.x()
                         new_topleft_y = new_pos.y()
                         new_bottomright_x = rectangle.bottomright.x
@@ -930,27 +928,48 @@ class CanvasWidget(QLabel):
                             topleft=Point(x=new_topleft_x, y=new_topleft_y),
                             bottomright=Point(x=new_bottomright_x, y=new_bottomright_y)
                         )
-                        self.undo_tree.remove_shape_by_id(rectangle.id)
-                        self.undo_tree.add_shape(new_rect)
                     elif vertex_index == 1:
-                        delta_w = new_pos.x() - (rect[0] + rect[2])
-                        delta_h = rect[1] - new_pos.y()
-                        rect[1] = new_pos.y()
-                        rect[2] = rect[2] + delta_w
-                        rect[3] = rect[3] + delta_h
-                        # rect[2] = new_pos.x() - rect[0]
-                        # rect[1] = new_pos.y()
+                        #delta_w = new_pos.x() - (rect[0] + rect[2])
+                        #delta_h = rect[1] - new_pos.y()
+                        #rect[1] = new_pos.y()
+                        #rect[2] = rect[2] + delta_w
+                        #rect[3] = rect[3] + delta_h
+                        delta_w = new_pos.x() - rectangle.bottomright.x
+                        delta_h = rectangle.topleft.y - new_pos.y()
+                        new_topleft_x = rectangle.topleft.x
+                        new_topleft_y = new_pos.y()
+                        new_bottomright_x = new_pos.x()
+                        new_bottomright_y = rectangle.bottomright.y
+                        new_rect = Rectangle(
+                            id=rectangle.id,
+                            category_id=rectangle.category_id,
+                            topleft=Point(x=new_topleft_x, y=new_topleft_y),
+                            bottomright=Point(x=new_bottomright_x, y=new_bottomright_y)
+                        )
                     elif vertex_index == 2:
-                        delta_w = rect[0] - new_pos.x()
-                        delta_h = new_pos.y() - (rect[1] + rect[3])
-                        rect[0] = new_pos.x()
-                        rect[2] = rect[2] + delta_w
-                        rect[3] = rect[3] + delta_h
+                        new_topleft_x = new_pos.x()
+                        new_topleft_y = rectangle.topleft.y
+                        new_bottomright_x = rectangle.bottomright.x
+                        new_bottomright_y = new_pos.y()
+                        new_rect = Rectangle(
+                            id=rectangle.id,
+                            category_id=rectangle.category_id,
+                            topleft=Point(x=new_topleft_x, y=new_topleft_y),
+                            bottomright=Point(x=new_bottomright_x, y=new_bottomright_y)
+                        )
                     elif vertex_index == 3:
-                        delta_w = new_pos.x() - (rect[0] + rect[2])
-                        delta_h = new_pos.y() - (rect[1] + rect[3])
-                        rect[2] = rect[2] + delta_w
-                        rect[3] = rect[3] + delta_h
+                        new_topleft_x = rectangle.topleft.x
+                        new_topleft_y = rectangle.topleft.y
+                        new_bottomright_x = new_pos.x()
+                        new_bottomright_y = new_pos.y()
+                        new_rect = Rectangle(
+                            id=rectangle.id,
+                            category_id=rectangle.category_id,
+                            topleft=Point(x=new_topleft_x, y=new_topleft_y),
+                            bottomright=Point(x=new_bottomright_x, y=new_bottomright_y)
+                        )
+                    self.undo_tree.remove_shape_by_id(rectangle.id)
+                    self.undo_tree.add_shape(new_rect)
                     break
 
     def move_rectangle(self, new_pos):
@@ -1156,7 +1175,7 @@ class CanvasWidget(QLabel):
                 bbox[1]
             )
             new_bottomright = Point(
-                (bbox[2] + bbox[0])
+                (bbox[2] + bbox[0]),
                 (bbox[3] + bbox[1])
             )
             new_rectangle = Rectangle(
@@ -1196,10 +1215,11 @@ class CanvasWidget(QLabel):
         for rect in self.undo_tree.shapes:
             if not isinstance(rect, Rectangle):
                 continue
+            rect = cast(Rectangle, rect)
 
             category_id = rect.category_id
             id = rect.id
-            legacy_rect = rect.to_legacy_json(self.current_pixmap.width(), self.current_pixmap.height())
+            legacy_rect = rect.to_legacy_json()
             x, y, w, h = (
                 legacy_rect["bbox"][0],
                 legacy_rect["bbox"][1],
