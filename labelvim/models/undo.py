@@ -103,3 +103,9 @@ class UndoTree:
     def remove_shape(self, index: int) -> None:
         self.execute_command(RemoveShapeCommand(index))
 
+    def remove_shape_by_id(self, shape_id: int) -> None:
+        self.remove_shape(self.find_shape_index_by_id(shape_id))
+
+    def find_shape_index_by_id(self, shape_id: int) -> int:
+        return [index for index, value in enumerate(self.shapes) if value.id == shape_id][0]
+

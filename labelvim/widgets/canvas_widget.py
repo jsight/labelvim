@@ -10,6 +10,7 @@ from labelvim.utils.config import ANNOTATION_MODE, OBJECT_LIST_ACTION, ANNOTATIO
 from labelvim.models.model import Point, Polygon, Rectangle
 from labelvim.models.undo import AddShapeCommand, RemoveShapeCommand, UndoTree
 from enum import Enum
+from typing import cast
 
 
 class CanvasWidget(QLabel):
@@ -562,7 +563,6 @@ class CanvasWidget(QLabel):
                 for rectangle in self.undo_tree.shapes:
                     if not isinstance(rectangle, Rectangle):
                         continue
-                    rectangle = rectangle.to_scaled_rectangle(self.current_pixmap.width(), self.current_pixmap.height())
                     top_left_x = rectangle.topleft.x
                     top_left_y = rectangle.topleft.y
                     bottom_right_x = rectangle.bottomright.x
@@ -683,10 +683,11 @@ class CanvasWidget(QLabel):
             if label_selected:
                 try:
                     index = self.label_list.index(label_selected)
-                    new_topleft = Point(bbox.x()/self.current_pixmap.width(), bbox.y()/self.current_pixmap.height())
+                    new_topleft = Point(bbox.x(), bbox.y())
                     new_bottomright = Point(
-                        (bbox.x() + bbox.width())/self.current_pixmap.width(),
-                        (bbox.y() + bbox.height())/self.current_pixmap.height())
+                        (bbox.x() + bbox.width()),
+                        (bbox.y() + bbox.height())
+                    )
                     new_rectangle = Rectangle(
                         id=len(self.undo_tree.shapes),
                         category_id=index,
@@ -711,10 +712,11 @@ class CanvasWidget(QLabel):
                         # print(f"Polygon: {poly}")
                         # print(f"Polygon: {polygon}")
                         bbox = polygon.boundingRect()
-                        new_topleft = Point(bbox.x()/self.current_pixmap.width(), bbox.y()/self.current_pixmap.height())
+                        new_topleft = Point(bbox.x(), bbox.y())
                         new_bottomright = Point(
-                            (bbox.x() + bbox.width())/self.current_pixmap.width(),
-                            (bbox.y() + bbox.height())/self.current_pixmap.height())
+                            (bbox.x() + bbox.width()),
+                            (bbox.y() + bbox.height())
+                        )
                         new_rectangle = Rectangle(
                             id=len(self.undo_tree.shapes),
                             category_id=index,
@@ -837,7 +839,6 @@ class CanvasWidget(QLabel):
         for rect in self.undo_tree.shapes:
             if not isinstance(rect, Rectangle):
                 continue
-            rect = rect.to_scaled_rectangle(self.current_pixmap.width(), self.current_pixmap.height())
             rect_obj = QRect(
                 int(rect.topleft.x), int(rect.topleft.y),
                 int(rect.bottomright.x-rect.topleft.x), int(rect.bottomright.y-rect.topleft.y)
@@ -875,11 +876,9 @@ class CanvasWidget(QLabel):
     def find_object_to_edit(self, click_pos):
         # Iterate from top to bottom (reverse order) to find the topmost object
         # for rectangle in reversed(self.rectangles):
-        for rectangle in reversed(self.undo_tree.shapes):
-            if not isinstance(rectangle, Rectangle):
+        for rect in reversed(self.undo_tree.shapes):
+            if not isinstance(rect, Rectangle):
                 continue
-            #rect = rectangle["bbox"]
-            rect = rectangle.to_scaled_rectangle(self.current_pixmap.width(), self.current_pixmap.height())
 
             vertices = [
                 QPoint(int(rect.topleft.x), int(rect.topleft.y)),  # top-left
@@ -891,8 +890,8 @@ class CanvasWidget(QLabel):
             for i, vertex in enumerate(vertices):
                 # scaled_vertex = self.scale_point(vertex)
                 if self.distance(vertex, mapped_pos) <= 20:
-                    print("Selecting rect:",rectangle.id)
-                    return rectangle.id, i
+                    print("Selecting rect:",rect.id)
+                    return rect.id, i
         return None, None
 
     def get_selected_object(self):
@@ -916,15 +915,25 @@ class CanvasWidget(QLabel):
         if self.selected_object is not None:
             #for rectangle in self.rectangles:
             for rectangle in self.undo_tree.shapes:
+                rectangle = cast(Rectangle, rectangle)
                 if rectangle.id == self.selected_object:
-                    rect = rectangle["bbox"]
                     if vertex_index == 0:
-                        delta_w = rect[0] - new_pos.x()
-                        delta_h = rect[1] - new_pos.y()
-                        rect[0] = new_pos.x()
-                        rect[1] = new_pos.y()
-                        rect[2] = rect[2] + delta_w
-                        rect[3] = rect[3] + delta_h
+                        delta_w = rectangle.topleft.x - new_pos.x()
+                        delta_h = rectangle.topleft.y - new_pos.y()
+                        print("Delta_w: ", delta_w)
+                        print("Delta_h: ", delta_h)
+                        new_topleft_x = new_pos.x()
+                        new_topleft_y = new_pos.y()
+                        new_bottomright_x = rectangle.bottomright.x + delta_w
+                        new_bottomright_y = rectangle.bottomright.y + delta_h
+                        new_rect = Rectangle(
+                            id=rectangle.id,
+                            category_id=rectangle.category_id,
+                            topleft=Point(x=new_topleft_x, y=new_topleft_y),
+                            bottomright=Point(x=new_bottomright_x, y=new_bottomright_y)
+                        )
+                        self.undo_tree.remove_shape_by_id(rectangle.id)
+                        self.undo_tree.add_shape(new_rect)
                     elif vertex_index == 1:
                         delta_w = new_pos.x() - (rect[0] + rect[2])
                         delta_h = rect[1] - new_pos.y()
@@ -1145,12 +1154,12 @@ class CanvasWidget(QLabel):
 
             # polygon = QPolygon([QPoint(poly[i], poly[i+1]) for i in range(0, len(poly), 2)])
             new_topleft = Point(
-                bbox[0]/self.current_pixmap.width(),
-                bbox[1]/self.current_pixmap.height()
+                bbox[0],
+                bbox[1]
             )
             new_bottomright = Point(
-                (bbox[2] + bbox[0]) / self.current_pixmap.width(),
-                (bbox[3] + bbox[1]) / self.current_pixmap.height()
+                (bbox[2] + bbox[0])
+                (bbox[3] + bbox[1])
             )
             new_rectangle = Rectangle(
                 id=len(self.undo_tree.shapes),
