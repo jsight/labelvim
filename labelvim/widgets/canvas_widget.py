@@ -920,12 +920,10 @@ class CanvasWidget(QLabel):
                     if vertex_index == 0:
                         delta_w = rectangle.topleft.x - new_pos.x()
                         delta_h = rectangle.topleft.y - new_pos.y()
-                        print("Delta_w: ", delta_w)
-                        print("Delta_h: ", delta_h)
                         new_topleft_x = new_pos.x()
                         new_topleft_y = new_pos.y()
-                        new_bottomright_x = rectangle.bottomright.x + delta_w
-                        new_bottomright_y = rectangle.bottomright.y + delta_h
+                        new_bottomright_x = rectangle.bottomright.x
+                        new_bottomright_y = rectangle.bottomright.y
                         new_rect = Rectangle(
                             id=rectangle.id,
                             category_id=rectangle.category_id,
