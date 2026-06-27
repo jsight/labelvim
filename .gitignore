@@ -165,3 +165,18 @@ carscrape/
 .idea/
 
 secrets/
+
+# macOS AppleDouble metadata
+._*
+.DS_Store
+
+# Go experiment scratch (not part of the Python app)
+go.mod
+go.sum
+*.go
+geminitest/
+geminitest_onlyscreen/
+
+# Misc scratch
+foo.png
+.guardrails
