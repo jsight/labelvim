@@ -81,8 +81,8 @@ class CanvasWidget(QLabel):
         self.annotation_mode = ANNOTATION_MODE.NONE
         self.annotation_type = ANNOTATION_TYPE.NONE
         self.scale_factor_w, self.scale_factor_h = 1, 1
-        self.zoom_in_scale_factor = 1.25
-        self.zoom_out_scale_factor = 0.8
+        self.zoom_in_scale_factor = 1.05#1.25
+        self.zoom_out_scale_factor = .95 #0.8
         self.max_scale_factor = 6
         self.point_click_radious = 5  # The radious of the point click
         self.in_edit_mode = False
@@ -876,6 +876,9 @@ class CanvasWidget(QLabel):
     def find_object_to_edit(self, click_pos):
         # Iterate from top to bottom (reverse order) to find the topmost object
         # for rectangle in reversed(self.rectangles):
+        min_dist = 100
+        selected_rect_id = None
+        selected_vertex_idx = None
         for rect in reversed(self.undo_tree.shapes):
             if not isinstance(rect, Rectangle):
                 continue
@@ -887,12 +890,18 @@ class CanvasWidget(QLabel):
                 QPoint(int(rect.bottomright.x), int(rect.bottomright.y))
             ]  # bottom-right
             mapped_pos = self.map_to_original_image(click_pos)
+            
             for i, vertex in enumerate(vertices):
-                # scaled_vertex = self.scale_point(vertex)
-                if self.distance(vertex, mapped_pos) <= 20:
-                    print("Selecting rect:",rect.id)
-                    return rect.id, i
-        return None, None
+                dist = self.distance(vertex, mapped_pos)
+                if dist <= 20 and dist < min_dist:
+                    min_dist = dist
+                    selected_rect_id = rect.id
+                    selected_vertex_idx = i
+                    print(f"Selecting rect: {rect.id}, vertx: {i}, dist: {dist}")
+        if selected_rect_id != None and selected_vertex_idx != None:
+            return selected_rect_id, selected_vertex_idx 
+        else:
+            return None, None
 
     def get_selected_object(self):
         """
@@ -978,8 +987,17 @@ class CanvasWidget(QLabel):
             if rect is not None:
                 dx = new_pos.x() - self.last_mouse_position.x()
                 dy = new_pos.y() - self.last_mouse_position.y()
-                rect["bbox"][0] += int(dx)
-                rect["bbox"][1] += int(dy)
+                new_rect = Rectangle(
+                    id=rect.id,
+                    category_id=rect.category_id,
+                    topleft=Point(x=rect.topleft.x + dx, y=rect.topleft.y + dy),
+                    bottomright=Point(x=rect.bottomright.x + dx, y=rect.bottomright.y + dy)
+                )
+                self.undo_tree.remove_shape_by_id(rect.id)
+                self.undo_tree.add_shape(new_rect)
+                #rect["bbox"][0] += int(dx)
+                #rect["bbox"][1] += int(dy)
+
 
     def select_polygon(self, pos):
         selected_polygon = []
@@ -1178,6 +1196,8 @@ class CanvasWidget(QLabel):
                 (bbox[2] + bbox[0]),
                 (bbox[3] + bbox[1])
             )
+            print("New top left:", new_topleft)
+            print("New bottom right:", new_bottomright)
             new_rectangle = Rectangle(
                 id=len(self.undo_tree.shapes),
                 category_id=category_id,
