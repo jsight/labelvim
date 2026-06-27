@@ -104,14 +104,14 @@ survives the round trip.
 6. **Save/load through the document** (gur-c5ee6b23.6): replace the bespoke
    `update_annotation_from/to_json` with `to_dict/from_dict`.
 
-## Open questions for review
+## Resolved decisions (reviewed 2026-06-27)
 
-- **Selection in undo?** Proposal: selection is *view* state, **not** part of the
-  undo history (undoing shouldn't replay cursor moves). Shape data only.
-- **`id` semantics:** today `id` is the list position (`len(shapes)`), which
-  breaks after removal. Proposal: `id` becomes a stable per-shape identifier
-  assigned on creation; on-disk `id` is re-derived as the array index only at
-  `to_dict` time (to keep COCO output contiguous). Confirm acceptable.
-- **Polygon model:** `Polygon` currently carries both a `rectangle` (bbox) and
-  `points`. Proposal: keep `points` authoritative and compute the bbox on demand
-  rather than storing/syncing it.
+- **`id` semantics:** shapes get a **stable id assigned at creation**; the on-disk
+  COCO `id` is re-derived as the array index at `to_dict` time so exported files
+  stay contiguous. Fixes the delete/reorder collision bug.
+- **Selection in undo:** undo/redo replays **shape data only**. Selection (active
+  shape/vertex, edit cursor) is view state and is *not* part of undo history or
+  serialization.
+- **Polygon bbox:** polygon **`points` are authoritative**; the bounding box is
+  **computed on demand**, not stored/synced. (`Polygon.rectangle` is removed in
+  favor of a `bbox` property in the geometry task.)
