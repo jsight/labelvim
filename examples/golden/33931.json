@@ -1,0 +1,47 @@
+{
+    "annotations": [
+        {
+            "id": 0,
+            "category_id": 1,
+            "bbox": [
+                50,
+                50,
+                150,
+                100
+            ],
+            "area": 15000,
+            "segmentation": [],
+            "iscrowd": 0
+        },
+        {
+            "id": 1,
+            "category_id": 0,
+            "bbox": [
+                300,
+                80,
+                200,
+                150
+            ],
+            "area": 30000,
+            "segmentation": [],
+            "iscrowd": 0
+        },
+        {
+            "id": 2,
+            "category_id": 3,
+            "bbox": [
+                450,
+                250,
+                120,
+                120
+            ],
+            "area": 14400,
+            "segmentation": [],
+            "iscrowd": 0
+        }
+    ],
+    "imagePath": "33931.jpg",
+    "imageData": null,
+    "imageHeight": 426,
+    "imageWidth": 640
+}
