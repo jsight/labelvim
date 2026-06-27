@@ -1,4 +1,5 @@
 import os
+from collections.abc import Sequence
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".bmp", ".gif")
 LABEL_EXTENSIONS = (".json",)
@@ -43,7 +44,7 @@ def validate_label_ext(label_name: str, extention: tuple[str, ...] = LABEL_EXTEN
     return False
 
 
-def validate_ext(label_name: str, extention: list) -> bool:
+def validate_ext(label_name: str, extention: Sequence[str]) -> bool:
     label_ext = os.path.splitext(label_name)[1]
     if label_ext.lower() in extention:
         return True

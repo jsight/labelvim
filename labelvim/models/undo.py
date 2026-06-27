@@ -1,7 +1,6 @@
 import copy
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
 
 from labelvim.models.model import Shape
 
@@ -38,6 +37,7 @@ class RemoveShapeCommand(Command):
         image.shapes.pop(self.index)
 
     def undo(self, image: "UndoTree") -> None:
+        assert self.shape is not None, "execute() must run before undo()"
         image.shapes.insert(self.index, copy.deepcopy(self.shape))
 
 
@@ -46,12 +46,8 @@ class RemoveShapeCommand(Command):
 class UndoTreeNode:
     state: list[Shape]  # Snapshot of shapes
     command: Command | None  # Action that led to this state
-    parent: Optional["UndoTreeNode"] = None
-    children: list["UndoTreeNode"] = None
-
-    def __post_init__(self):
-        if self.children is None:
-            self.children = []
+    parent: "UndoTreeNode | None" = None
+    children: list["UndoTreeNode"] = field(default_factory=list)
 
 
 @dataclass
@@ -64,7 +60,7 @@ class UndoTree:
         self.clear()
 
     def clear(self):
-        initial_state = []
+        initial_state: list[Shape] = []
         initial_node = UndoTreeNode(state=initial_state, command=None, parent=None)
         self.shapes = initial_state
         self.undo_tree = initial_node
@@ -86,6 +82,7 @@ class UndoTree:
         if self.current_node.parent is None:
             return False  # No parent to undo to
         # Move to parent node
+        assert self.current_node.command is not None  # non-root nodes always have a command
         self.current_node.command.undo(self)
         self.current_node = self.current_node.parent
         self.shapes = copy.deepcopy(self.current_node.state)
@@ -96,6 +93,7 @@ class UndoTree:
             return False  # No children to redo to
         # Move to the specified child node
         self.current_node = self.current_node.children[child_index]
+        assert self.current_node.command is not None  # child nodes always have a command
         self.current_node.command.execute(self)
         self.shapes = copy.deepcopy(self.current_node.state)
         return True

@@ -19,7 +19,7 @@ class LabelListReader:
         label_list (list): List of labels read from the YAML file.
     """
 
-    def __init__(self, label_list_path: str = None):
+    def __init__(self, label_list_path: str | None = None):
         """
         Initializes the LabelListReader class.
 
@@ -40,6 +40,8 @@ class LabelListReader:
         Raises:
             FileNotFoundError: If the specified YAML file does not exist.
         """
+        if self.label_list_path is None:
+            raise ValueError("label_list_path is not set")
         logger.debug("%s %s", "Reading file: ", self.label_list_path)
         with open(self.label_list_path) as f:
             self.label_list = yaml.safe_load(f)
@@ -62,6 +64,8 @@ class LabelListReader:
         Args:
             label_list (list): The list of labels to write to the file.
         """
+        if self.label_list_path is None:
+            raise ValueError("label_list_path is not set")
         with open(self.label_list_path, "w") as f:
             yaml.dump(label_list, f, indent=4)
 

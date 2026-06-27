@@ -487,7 +487,7 @@ class CanvasWidget(QLabel):
             if key == Qt.Key_Delete:
                 logger.debug("Delete Key Pressed")
                 if self.selected_object is not None and self.selected_vertex is None:
-                    self.undo_tree.remove_shape(index)
+                    self.undo_tree.remove_shape(self.selected_object)
                     # self.rectangles.pop(self.selected_object)
                     # emit signal to remove object from the object list
                     self.object_list_action_slot.emit(
