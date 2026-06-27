@@ -503,7 +503,7 @@ class CanvasWidget(QLabel):
             painter.setBrush(QBrush(self.brush_color))
             # print(f"Annotation Type: {self.annotation_type}")
             # print("self.rectangles: ", self.rectangles)
-            if self.cursor_pos != None:
+            if self.cursor_pos is not None:
                 cursor_x = offset_x + int(self.cursor_pos[0] * self.current_pixmap.width())
                 cursor_y = offset_y + int(self.cursor_pos[1] * self.current_pixmap.height())
                 cursor_point = QPoint(cursor_x, cursor_y)
@@ -864,7 +864,7 @@ class CanvasWidget(QLabel):
                     selected_rect_id = rect.id
                     selected_vertex_idx = i
                     print(f"Selecting rect: {rect.id}, vertx: {i}, dist: {dist}")
-        if selected_rect_id != None and selected_vertex_idx != None:
+        if selected_rect_id is not None and selected_vertex_idx is not None:
             return selected_rect_id, selected_vertex_idx
         else:
             return None, None
@@ -909,8 +909,6 @@ class CanvasWidget(QLabel):
                         # rect[1] = new_pos.y()
                         # rect[2] = rect[2] + delta_w
                         # rect[3] = rect[3] + delta_h
-                        delta_w = new_pos.x() - rectangle.bottomright.x
-                        delta_h = rectangle.topleft.y - new_pos.y()
                         new_topleft_x = rectangle.topleft.x
                         new_topleft_y = new_pos.y()
                         new_bottomright_x = new_pos.x()
@@ -1129,7 +1127,6 @@ class CanvasWidget(QLabel):
         self.undo_tree.clear()
         for anno in annotation:
             category_id = anno["category_id"]
-            id = anno["id"]
             bbox = anno["bbox"]
             poly = anno["segmentation"]
             polygons = []
@@ -1190,7 +1187,6 @@ class CanvasWidget(QLabel):
                 legacy_rect["bbox"][3],
             )
             area = w * h
-            polygons = []
             # for polygon in rect["polygon"]:
             #    poly = []
             #    for point in polygon:

@@ -53,7 +53,7 @@ class CustomListViewWidget(QtWidgets.QListView):
         self.setModel(self.model)
         self.setUpdatesEnabled(True)
 
-    def set_label_list(self, label_list=[]):
+    def set_label_list(self, label_list: list | None = None):
         """
         Updates the list view with a new list of labels.
 
@@ -247,7 +247,7 @@ class CustomLabelWidget(QtWidgets.QListView):
         # Set the edit triggers to NoEditTriggers
         self.setEditTriggers(QtWidgets.QListView.NoEditTriggers)
 
-    def set_label_list(self, label_list: list = []):
+    def set_label_list(self, label_list: list | None = None):
         """
         Updates the list view with a new list of labels.
 
@@ -475,20 +475,18 @@ class CustomObjectListWidget(QtWidgets.QListView):
         else:
             pass
 
-    def set_label_list(self, category_id: list = [], object_id: list = []):
+    def set_label_list(self, category_id: list | None = None, object_id: list | None = None):
         """
         Updates the list view with a new list of labels.
 
         Args:
             label_list (list, optional): A list of label names to display. Defaults to an empty list.
         """
-        # Check if the label list is a non-empty list
-        # if isinstance(category_id, list) and len(category_id) > 0 and isinstance(object_id, list) and len(object_id) > 0:
         # Clear the model before updating
         self.clear_list()
         # Update the label list and model
-        self.category_id = category_id
-        self.object_id = object_id
+        self.category_id = category_id if category_id is not None else []
+        self.object_id = object_id if object_id is not None else []
         print(f"Category ID: {category_id}")
         print(f"Object ID: {object_id}")
         object_list = [

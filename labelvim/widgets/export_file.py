@@ -430,7 +430,7 @@ class YOLOConversion:
 
             nc: 1
             names: ['Landslide']
-            
+
             """
             with open("data.yaml", "w") as file:
                 file.write("train: ../train/images\n")
@@ -589,7 +589,6 @@ class COCOConversion:
         image_name = annotation_data["imagePath"]
         image_path = os.path.join(self.data_dir, image_name)
         image = cv2.imread(image_path)
-        base_name = os.path.splitext(os.path.basename(image_path))[0]
 
         # mask_path = None
         if self.include_mask:

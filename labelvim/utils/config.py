@@ -1,5 +1,7 @@
 from enum import Enum
 
+import yaml
+
 
 class ANNOTATION_TYPE(Enum):
     BBOX = 1
@@ -40,9 +42,6 @@ class ExportType(Enum):
     YOLOV7 = 3
     YOLOV8 = 4
     YOLOV9 = 5
-
-
-import yaml
 
 
 class ConfigSpecHandler:

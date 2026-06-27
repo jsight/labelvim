@@ -5,12 +5,12 @@ from PyQt5.QtWidgets import QLineEdit, QMessageBox, QStyledItemDelegate
 CustomDelegate: Now checks for duplicates in the QStringList
 Model and handles committing data appropriately.
 
-The setModelData method iterates through the string list to 
+The setModelData method iterates through the string list to
 check for duplicates and updates the model if the new text is valid.
 CustomObjectListWidget: Uses QStringListModel for the list data.
 
 add_item: Appends new items to the list.
-This setup integrates QStringListModel with the custom delegate, 
+This setup integrates QStringListModel with the custom delegate,
 allowing you to edit list items and ensure that no duplicates are added.
 
 """

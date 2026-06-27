@@ -110,7 +110,6 @@ class AnnotationManager:
                 "imageData": None,
                 "imageHeight": None,
                 "imageWidth": None,
-                "imageData": None,
             }
 
     def check_annotation_exists(self):
