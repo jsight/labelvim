@@ -1,57 +1,62 @@
+import copy
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional
-import copy
+from typing import Optional
 
 from labelvim.models.model import Shape
+
 
 # Command interface for undoable actions
 class Command(ABC):
     @abstractmethod
-    def execute(self, image: 'UndoTree') -> None:
+    def execute(self, image: "UndoTree") -> None:
         pass
 
     @abstractmethod
-    def undo(self, image: 'UndoTree') -> None:
+    def undo(self, image: "UndoTree") -> None:
         pass
+
 
 @dataclass
 class AddShapeCommand(Command):
     shape: Shape
 
-    def execute(self, image: 'UndoTree') -> None:
+    def execute(self, image: "UndoTree") -> None:
         image.shapes.append(copy.deepcopy(self.shape))
 
-    def undo(self, image: 'UndoTree') -> None:
+    def undo(self, image: "UndoTree") -> None:
         image.shapes.pop()
+
 
 @dataclass
 class RemoveShapeCommand(Command):
     index: int
-    shape: Optional[Shape] = None
+    shape: Shape | None = None
 
-    def execute(self, image: 'UndoTree') -> None:
+    def execute(self, image: "UndoTree") -> None:
         self.shape = copy.deepcopy(image.shapes[self.index])
         image.shapes.pop(self.index)
 
-    def undo(self, image: 'UndoTree') -> None:
+    def undo(self, image: "UndoTree") -> None:
         image.shapes.insert(self.index, copy.deepcopy(self.shape))
+
 
 # Undo tree node
 @dataclass
 class UndoTreeNode:
-    state: List[Shape]  # Snapshot of shapes
-    command: Optional[Command]  # Action that led to this state
-    parent: Optional['UndoTreeNode'] = None
-    children: List['UndoTreeNode'] = None
+    state: list[Shape]  # Snapshot of shapes
+    command: Command | None  # Action that led to this state
+    parent: Optional["UndoTreeNode"] = None
+    children: list["UndoTreeNode"] = None
 
     def __post_init__(self):
         if self.children is None:
             self.children = []
 
+
 @dataclass
 class UndoTree:
-    shapes: List[Shape]
+    shapes: list[Shape]
     undo_tree: UndoTreeNode
     current_node: UndoTreeNode
 
@@ -70,9 +75,7 @@ class UndoTree:
         command.execute(self)
         # Create a new node with the current state
         new_node = UndoTreeNode(
-            state=copy.deepcopy(self.shapes),
-            command=command,
-            parent=self.current_node
+            state=copy.deepcopy(self.shapes), command=command, parent=self.current_node
         )
         # Add the new node as a child of the current node
         self.current_node.children.append(new_node)
@@ -108,4 +111,3 @@ class UndoTree:
 
     def find_shape_index_by_id(self, shape_id: int) -> int:
         return [index for index, value in enumerate(self.shapes) if value.id == shape_id][0]
-

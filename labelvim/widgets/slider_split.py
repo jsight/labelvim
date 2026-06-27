@@ -1,9 +1,20 @@
-from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QRadioButton, QComboBox, QPushButton, QMessageBox,
-    QCheckBox, QSlider, QWidget, QFormLayout
-)
-from PyQt5.QtCore import Qt
 from enum import Enum
+
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QSlider,
+    QVBoxLayout,
+)
 
 
 class TaskType(Enum):
@@ -17,19 +28,20 @@ class ExportType(Enum):
     COCO = 0
     PASCAL_VOC = 1
     YOLOV5 = 2
-    YOLOV8 = 3    
+    YOLOV8 = 3
     YOLOV9 = 4
     YOLOV7 = 5
+
 
 class ExportFileDialog(QDialog):
     """Dialog to select task type and export format for exporting files."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Export Options')
+        self.setWindowTitle("Export Options")
         self.setMaximumHeight(300)
         self.setMaximumWidth(700)
-        
+
         self.task_type = TaskType.OBJECT_DETECTION
         self.export_type = ExportType.COCO
         self.include_mask = False
@@ -43,29 +55,29 @@ class ExportFileDialog(QDialog):
     def _init_ui(self):
         """Initialize the UI components."""
         main_layout = QVBoxLayout(self)
-        
+
         # Task type selection
         # self.model_selection_group = self._create_task_type_group()
         # main_layout.addWidget(self.model_selection_group)
-        
+
         # Export type selection
         self.export_type_selection = QComboBox(self)
-        self.update_export_options(['COCO', 'Pascal VOC', 'YOLOv5', 'YOLOv8', 'YOLOV9', 'YOLOV7'])
-        main_layout.addWidget(QLabel('Export Format:'))
+        self.update_export_options(["COCO", "Pascal VOC", "YOLOv5", "YOLOv8", "YOLOV9", "YOLOV7"])
+        main_layout.addWidget(QLabel("Export Format:"))
         main_layout.addWidget(self.export_type_selection)
-        
+
         # Train/Test/Validation sliders
         sliders_group = self._create_sliders_group()
         main_layout.addWidget(sliders_group)
-        
+
         # Checkbox for include mask
         self.include_mask_checkbox = QCheckBox("Include mask", self)
         main_layout.addWidget(self.include_mask_checkbox)
-        
+
         # Export button
-        self.export_button = QPushButton('Export', self)
+        self.export_button = QPushButton("Export", self)
         main_layout.addWidget(self.export_button)
-        
+
         self.setLayout(main_layout)
 
     def _create_task_type_group(self):
@@ -73,9 +85,9 @@ class ExportFileDialog(QDialog):
         group_box = QGroupBox("Task Type", self)
         layout = QHBoxLayout()
 
-        self.object_detection_radio = QRadioButton('Object Detection')
-        self.segmentation_radio = QRadioButton('Segmentation')
-        self.pose_radio = QRadioButton('Pose')
+        self.object_detection_radio = QRadioButton("Object Detection")
+        self.segmentation_radio = QRadioButton("Segmentation")
+        self.pose_radio = QRadioButton("Pose")
 
         self.object_detection_radio.setChecked(True)
 
@@ -137,11 +149,15 @@ class ExportFileDialog(QDialog):
         """Update the train, validation, and test percentages and label."""
         self.training_percentage = self.train_percentage_slider.value()
         self.test_percentage = 100 - self.test_percentage_slider.value()
-        self.validation_percentage = self.test_percentage_slider.value() - self.train_percentage_slider.value()
-        
-        self.label.setText(f"Train: {self.training_percentage}%\n"
-                           f"Valid: {self.validation_percentage}%\n"
-                           f"Test: {self.test_percentage}%")
+        self.validation_percentage = (
+            self.test_percentage_slider.value() - self.train_percentage_slider.value()
+        )
+
+        self.label.setText(
+            f"Train: {self.training_percentage}%\n"
+            f"Valid: {self.validation_percentage}%\n"
+            f"Test: {self.test_percentage}%"
+        )
 
     def _connect_signals(self):
         """Connect signals to their respective slots."""
@@ -157,13 +173,13 @@ class ExportFileDialog(QDialog):
         """Update export options based on the selected task type."""
         if self.object_detection_radio.isChecked():
             self.task_type = TaskType.OBJECT_DETECTION
-            self.update_export_options(['YOLOv5', 'YOLOv8'])
+            self.update_export_options(["YOLOv5", "YOLOv8"])
         elif self.segmentation_radio.isChecked():
             self.task_type = TaskType.SEGMENTATION
-            self.update_export_options(['YOLOv5', 'YOLOv8', 'Pascal VOC', 'COCO'])
+            self.update_export_options(["YOLOv5", "YOLOv8", "Pascal VOC", "COCO"])
         elif self.pose_radio.isChecked():
             self.task_type = TaskType.POSE
-            self.update_export_options(['COCO'])
+            self.update_export_options(["COCO"])
 
     def update_export_options(self, options):
         """Update the items in the export type combo box."""
@@ -175,6 +191,7 @@ class ExportFileDialog(QDialog):
     def _on_export_type_changed(self, index):
         """Update the export type based on the selected combo box item."""
         self.export_type = ExportType(index)
+
     def _on_checkbox_state_changed(self):
         """Handle the state change of the mask checkbox."""
         self.include_mask = self.include_mask_checkbox.isChecked()
@@ -182,17 +199,18 @@ class ExportFileDialog(QDialog):
     def _on_export(self):
         """Handle the export operation."""
         self.accept()
-        QMessageBox.critical(self, 'Export Failed', 'Failed to export the file.')
+        QMessageBox.critical(self, "Export Failed", "Failed to export the file.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     from PyQt5.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
     dialog = ExportFileDialog()
     dialog.show()
     if dialog.exec_():
-        print('Task Type:', dialog.task_type)
-        print('Export Type:', dialog.export_type)
-        print('Include Mask:', dialog.include_mask)
+        print("Task Type:", dialog.task_type)
+        print("Export Type:", dialog.export_type)
+        print("Include Mask:", dialog.include_mask)

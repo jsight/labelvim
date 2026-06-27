@@ -1,29 +1,32 @@
+from enum import Enum
+
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import QStringListModel, Qt, QRect, pyqtSignal, QModelIndex, pyqtSlot
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
-from PyQt5.QtWidgets import QInputDialog, QMessageBox, QMenu, QAction
+from PyQt5.QtCore import QStringListModel, Qt, pyqtSignal
+from PyQt5.QtGui import QStandardItem, QStandardItemModel
+from PyQt5.QtWidgets import QAction, QInputDialog, QMenu, QMessageBox
+
+from labelvim.models.model import Shape
 
 # External imports
 from labelvim.utils.config import ANNOTATION_TYPE, OBJECT_LIST_ACTION
 from labelvim.widgets.custom_delegates import CustomDelegate
-from enum import Enum
-from labelvim.models.model import Shape
+
 
 class CustomListViewWidget(QtWidgets.QListView):
     """
-    A custom QListView widget with added functionalities such as item selection, 
+    A custom QListView widget with added functionalities such as item selection,
     item removal, list clearing, and handling mouse events to toggle checkbox states.
 
     Signals:
         update_list (list): Emitted to update the list of labels.
-        notify_selected_item (str): Emitted when an item is selected, 
+        notify_selected_item (str): Emitted when an item is selected,
                                     containing the selected item's text.
 
     Attributes:
         model (QStandardItemModel): The data model for storing list items with checkboxes.
         label_list (list): A list to store label names displayed in the list view.
     """
-    
+
     update_list = pyqtSignal(list)
     notify_selected_item = pyqtSignal(str, int)
 
@@ -34,7 +37,7 @@ class CustomListViewWidget(QtWidgets.QListView):
         Args:
             parent (QWidget, optional): The parent widget. Defaults to None.
         """
-        super(CustomListViewWidget, self).__init__(parent)
+        super().__init__(parent)
         self.model = QStandardItemModel()
         self.label_list = []
         self.set_model()
@@ -42,7 +45,7 @@ class CustomListViewWidget(QtWidgets.QListView):
         self.selectionModel().currentChanged.connect(self.get_selected_item)
         self.update_list.connect(self.set_label_list)
         self.index = 0
-    
+
     def set_model(self):
         """
         Sets the data model for the list view and enables updates.
@@ -69,7 +72,7 @@ class CustomListViewWidget(QtWidgets.QListView):
                 item.setData(False, Qt.UserRole + 1)  # False means unchecked
                 self.model.appendRow(item)
             self.set_current_index(self.index)
-    
+
     def get_selected_item(self, current, previous):
         """
         Emits the signal with the currently selected item's text.
@@ -82,16 +85,16 @@ class CustomListViewWidget(QtWidgets.QListView):
         current_idx = current.row()
         if current_idx < 0:
             current_idx = 0
-        self.index = current_idx #self.selectedIndexes()[0].row()
+        self.index = current_idx  # self.selectedIndexes()[0].row()
         self.notify_selected_item.emit(self.model.data(current, Qt.DisplayRole), self.index)
-    
+
     def remove_selected_item(self):
         """
         Removes the currently selected item from the list view.
         """
         if len(self.selectedIndexes()) > 0:
             self.model.removeRow(self.selectedIndexes()[0].row())
-    
+
     def update_current_index(self, index):
         """
         Updates the current selection in the list view to the specified index.
@@ -100,7 +103,7 @@ class CustomListViewWidget(QtWidgets.QListView):
             index (QModelIndex): The index to set as the current selection.
         """
         self.setCurrentIndex(index)
-    
+
     def next_index(self):
         """
         Moves the selection to the next item in the list view, if possible.
@@ -110,7 +113,7 @@ class CustomListViewWidget(QtWidgets.QListView):
             self.setCurrentIndex(self.model.index(self.index + 1, 0))
             self.index = self.selectedIndexes()[0].row()
             # self.setCurrentIndex(self.model.index(self.selectedIndexes()[0].row() + 1, 0))
-    
+
     def previous_index(self):
         """
         Moves the selection to the previous item in the list view, if possible.
@@ -121,19 +124,19 @@ class CustomListViewWidget(QtWidgets.QListView):
             self.index = self.selectedIndexes()[0].row()
             # self.setCurrentIndex(self.model.index(self.selectedIndexes()[0].row() - 1, 0))
         # return index
-    
+
     def clear_list(self):
         """
         Clears all items from the list view.
         """
         self.model.removeRows(0, self.model.rowCount())
-    
+
     def clear_selection(self):
         """
         Clears the current selection in the list view.
         """
         self.clearSelection()
-    
+
     def get_label_list(self):
         """
         Returns the current list of labels.
@@ -142,7 +145,7 @@ class CustomListViewWidget(QtWidgets.QListView):
             list: The list of label names.
         """
         return self.label_list
-    
+
     def get_selected_index(self):
         """
         Returns the indexes of the selected items.
@@ -151,20 +154,20 @@ class CustomListViewWidget(QtWidgets.QListView):
             list: A list of QModelIndex objects representing the selected items.
         """
         return self.selectedIndexes()
-    
+
     def get_current_index(self):
         """
         Returns the index of the current selection.
-        
-        
+
+
         Returns:
             int: The index of the current selection.
         """
         return self.index
-    
+
     def mousePressEvent(self, event):
         """
-        Handles mouse press events on the list view. Toggles the checkbox state of 
+        Handles mouse press events on the list view. Toggles the checkbox state of
         the item under the mouse cursor.
 
         Args:
@@ -177,15 +180,15 @@ class CustomListViewWidget(QtWidgets.QListView):
             item = self.model.itemFromIndex(index)
             print(f"Item: {item.text()}")
             current_state = item.data(Qt.UserRole + 1)
-            
+
             # Toggle the state
             new_state = not current_state
             item.setData(new_state, Qt.UserRole + 1)
             self.index = self.selectedIndexes()[0].row()
 
         # Call the parent class's mousePressEvent to handle other events
-        super(CustomListViewWidget, self).mousePressEvent(event)
-    
+        super().mousePressEvent(event)
+
     def set_current_index(self, index):
         """
         Sets the current selection in the list view to the specified index.
@@ -198,8 +201,8 @@ class CustomListViewWidget(QtWidgets.QListView):
 
 class CustomLabelWidget(QtWidgets.QListView):
     """
-    A custom QListView widget for displaying and managing a list of labels. 
-    Allows adding new labels by double-clicking and supports updating the list 
+    A custom QListView widget for displaying and managing a list of labels.
+    Allows adding new labels by double-clicking and supports updating the list
     based on an annotation type.
 
     Attributes:
@@ -207,8 +210,9 @@ class CustomLabelWidget(QtWidgets.QListView):
         label_list (list): A list to store label names displayed in the list view.
         annotation_type (str): The type of annotation currently being handled.
     """
-    update_label_list_slot_transmitter = pyqtSignal(list) # Signal to update the label list
-    update_label_list_slot_receiver = pyqtSignal(list) # Signal to update the label list
+
+    update_label_list_slot_transmitter = pyqtSignal(list)  # Signal to update the label list
+    update_label_list_slot_receiver = pyqtSignal(list)  # Signal to update the label list
 
     def __init__(self, parent=None):
         """
@@ -217,7 +221,7 @@ class CustomLabelWidget(QtWidgets.QListView):
         Args:
             parent (QWidget, optional): The parent widget. Defaults to None.
         """
-        super(CustomLabelWidget, self).__init__(parent)
+        super().__init__(parent)
         # Initialize the model and label list
         self.model = QStringListModel()
         # label list is empty
@@ -228,7 +232,9 @@ class CustomLabelWidget(QtWidgets.QListView):
         # Set the annotation type to None
         self.annotation_type = ANNOTATION_TYPE.NONE
         # Connect the signals
-        self.update_label_list_slot_receiver.connect(self.__update_list) # Connect the signal to update the label list
+        self.update_label_list_slot_receiver.connect(
+            self.__update_list
+        )  # Connect the signal to update the label list
         self.model.dataChanged.connect(self.on_data_changed)  # Connect the dataChanged signal
 
     def set_model(self):
@@ -258,14 +264,14 @@ class CustomLabelWidget(QtWidgets.QListView):
             # update the model
             print(f"Label List in set label list: {self.label_list}")
             self.model.setStringList(self.label_list)
-    
+
     def clear_list(self):
         """
         Clears all items from the list view.
         """
         # Clear the list and update the model
         self.model.setStringList([])
-    
+
     def __update_list(self, label_list: list):
         """
         Updates the list of labels based on the provided label list.
@@ -275,7 +281,7 @@ class CustomLabelWidget(QtWidgets.QListView):
         """
         # Get the label list based on the annotation type
         self.set_label_list(label_list)
-    
+
     def update_annotation_type(self, annotation_type):
         """
         Updates the annotation type currently being used.
@@ -291,10 +297,10 @@ class CustomLabelWidget(QtWidgets.QListView):
         # Print the annotation type
         self.annotation_type = annotation_type
         print(f"Annotation Type: {self.annotation_type}")
-    
+
     def mouseDoubleClickEvent(self, event):
         """
-        Handles mouse double-click events on the list view. Prompts the user to 
+        Handles mouse double-click events on the list view. Prompts the user to
         add a new label if the left mouse button is double-clicked.
 
         Args:
@@ -303,14 +309,14 @@ class CustomLabelWidget(QtWidgets.QListView):
         # Check if the annotation type is set and the left mouse button is double-clicked
         if self.annotation_type != "None" and event.button() == Qt.LeftButton:
             # Show input dialog to add a new label
-            new_label, ok = QInputDialog.getText(self, 'Add New Label', 'Enter a new label:')
+            new_label, ok = QInputDialog.getText(self, "Add New Label", "Enter a new label:")
             # Check if the user entered a label and clicked OK
-            if ok and new_label.strip(): 
+            if ok and new_label.strip():
                 # Add the new label
                 self.add_label(new_label)
             # Call the parent class's mousePressEvent to handle other events
-            super(CustomLabelWidget, self).mousePressEvent(event)
-    
+            super().mousePressEvent(event)
+
     def add_label(self, new_label):
         """
         Adds a new label to the list view.
@@ -328,9 +334,8 @@ class CustomLabelWidget(QtWidgets.QListView):
             self.update_label_list_slot_transmitter.emit(self.label_list)
         else:
             # Show a warning message if the label already exists
-            QMessageBox.warning(self, 'Warning', 'This label already exists.')
-            
-    
+            QMessageBox.warning(self, "Warning", "This label already exists.")
+
     def remove_label(self, label):
         """
         Removes a label from the list view.
@@ -353,15 +358,15 @@ class CustomLabelWidget(QtWidgets.QListView):
             event (QContextMenuEvent): The context menu event object.
         """
         # Get the index at the mouse position
-        index = self.indexAt(event.pos()) 
+        index = self.indexAt(event.pos())
         # Check if the index is valid
         if index.isValid():
             # Create a context menu
-            menu = QMenu(self) 
+            menu = QMenu(self)
             # Create an action to edit the item
-            edit_action = QAction('Edit', self)
+            edit_action = QAction("Edit", self)
             # Connect the action to the edit_label method
-            edit_action.triggered.connect(lambda: self.edit_label(index)) 
+            edit_action.triggered.connect(lambda: self.edit_label(index))
             # Add the action to the menu
             menu.addAction(edit_action)
             # Show the context menu at the mouse position
@@ -376,8 +381,7 @@ class CustomLabelWidget(QtWidgets.QListView):
         """
         # Start editing the item at the specified index
         self.edit(index)
-    
-    
+
     def on_data_changed(self, topLeft, bottomRight, roles):
         """
         Slot that is triggered when the data in the model is changed.
@@ -392,10 +396,11 @@ class CustomLabelWidget(QtWidgets.QListView):
         # Emit signal to update the list
         self.update_label_list_slot_transmitter.emit(self.label_list)
 
+
 class CustomObjectListWidget(QtWidgets.QListView):
     """
-    A custom QListView widget for displaying and managing a list of labels. 
-    Allows adding new labels by double-clicking and supports updating the list 
+    A custom QListView widget for displaying and managing a list of labels.
+    Allows adding new labels by double-clicking and supports updating the list
     based on an annotation type.
 
     Attributes:
@@ -403,8 +408,9 @@ class CustomObjectListWidget(QtWidgets.QListView):
         label_list (list): A list to store label names displayed in the list view.
         annotation_type (str): The type of annotation currently being handled.
     """
-    object_list_slot_receiver = pyqtSignal(list, Enum) # Signal to update the label list
-    object_selection_notification_slot = pyqtSignal(int) # Signal to update the label list
+
+    object_list_slot_receiver = pyqtSignal(list, Enum)  # Signal to update the label list
+    object_selection_notification_slot = pyqtSignal(int)  # Signal to update the label list
 
     def __init__(self, parent=None):
         """
@@ -413,12 +419,12 @@ class CustomObjectListWidget(QtWidgets.QListView):
         Args:
             parent (QWidget, optional): The parent widget. Defaults to None.
         """
-        super(CustomObjectListWidget, self).__init__(parent)
+        super().__init__(parent)
         # Initialize the model and label list
         self.model = QStringListModel()
         # label list is empty
-        self.label_list = [] # list of labels Updated by main.py
-        self.category_id = [] # list of category id
+        self.label_list = []  # list of labels Updated by main.py
+        self.category_id = []  # list of category id
         self.object_id = []
         self.object = dict()
         self.set_model()
@@ -426,7 +432,9 @@ class CustomObjectListWidget(QtWidgets.QListView):
         self.clicked.connect(self.on_item_clicked)
         self.set_label_list(self.label_list)
         # Connect the signals
-        self.object_list_slot_receiver.connect(self.__receiver_action) # Connect the signal to update the label list
+        self.object_list_slot_receiver.connect(
+            self.__receiver_action
+        )  # Connect the signal to update the label list
         # self.model.dataChanged.connect(self.handle_data_changed)  # Connect the dataChanged signal
 
     def set_model(self):
@@ -438,7 +446,7 @@ class CustomObjectListWidget(QtWidgets.QListView):
         self.setUpdatesEnabled(True)
         # # Set the edit triggers to NoEditTriggers
         self.setEditTriggers(QtWidgets.QListView.NoEditTriggers)
-    
+
     def __receiver_action(self, data: any, action: Enum):
         data = data[0]
         if action == OBJECT_LIST_ACTION.UPDATE:
@@ -448,12 +456,12 @@ class CustomObjectListWidget(QtWidgets.QListView):
                 self.object = {label.id: label.category_id for label in data}
                 self.set_label_list(category_id=category_id, object_id=object_id)
         elif action == OBJECT_LIST_ACTION.ADD:
-            #if isinstance(data, dict):
+            # if isinstance(data, dict):
             if isinstance(data, Shape):
                 if data.id in self.object:
                     return
                 self.object[data.id] = data.category_id
-                self.add_label(category_id = data.category_id, object_id = data.id)
+                self.add_label(category_id=data.category_id, object_id=data.id)
         elif action == OBJECT_LIST_ACTION.CLEAR:
             self.clear_list()
         elif action == OBJECT_LIST_ACTION.REMOVE:
@@ -463,10 +471,9 @@ class CustomObjectListWidget(QtWidgets.QListView):
                 self.remove_label(data)
         elif action == OBJECT_LIST_ACTION.EDIT:
             if isinstance(data, dict):
-                self.edit_label(data['id'], data["category_id"])
+                self.edit_label(data["id"], data["category_id"])
         else:
             pass
-
 
     def set_label_list(self, category_id: list = [], object_id: list = []):
         """
@@ -477,17 +484,20 @@ class CustomObjectListWidget(QtWidgets.QListView):
         """
         # Check if the label list is a non-empty list
         # if isinstance(category_id, list) and len(category_id) > 0 and isinstance(object_id, list) and len(object_id) > 0:
-            # Clear the model before updating
+        # Clear the model before updating
         self.clear_list()
         # Update the label list and model
         self.category_id = category_id
         self.object_id = object_id
         print(f"Category ID: {category_id}")
         print(f"Object ID: {object_id}")
-        object_list = [f"{self.label_list[id]} ({self.object_id[idx]})" for idx, id in enumerate(self.category_id)]
+        object_list = [
+            f"{self.label_list[id]} ({self.object_id[idx]})"
+            for idx, id in enumerate(self.category_id)
+        ]
         # update the model
         self.model.setStringList(object_list)
-        
+
     def clear_list(self):
         """
         Clears all items from the list view.
@@ -497,7 +507,7 @@ class CustomObjectListWidget(QtWidgets.QListView):
         self.category_id.clear()
         self.object.clear()
         self.model.setStringList([])
-    
+
     def add_label(self, category_id: str, object_id: int):
         """
         Adds a new label to the list view.
@@ -509,10 +519,13 @@ class CustomObjectListWidget(QtWidgets.QListView):
         self.object_id.append(object_id)
         self.category_id.append(category_id)
         # object_list = [f"{self.label_list[id]}_{object_id[id]}" for id in self.category_id]
-        object_list = [f"{self.label_list[id]} ({self.object_id[idx]})" for idx, id in enumerate(self.category_id)]
+        object_list = [
+            f"{self.label_list[id]} ({self.object_id[idx]})"
+            for idx, id in enumerate(self.category_id)
+        ]
         # Update the model
         self.model.setStringList(object_list)
-    
+
     def remove_label(self, data: list):
         """
         Removes a label from the list view.
@@ -522,8 +535,8 @@ class CustomObjectListWidget(QtWidgets.QListView):
         """
         print(f"Data To Be remoed: {data}")
         category_id = [label["category_id"] for label in data]
-        object_id = [label['id'] for label in data]
-        self.object = {label['id']: label['category_id'] for label in data}
+        object_id = [label["id"] for label in data]
+        self.object = {label["id"]: label["category_id"] for label in data}
         self.set_label_list(category_id=category_id, object_id=object_id)
 
     def edit_label(self, object_id, category_id):
@@ -539,19 +552,25 @@ class CustomObjectListWidget(QtWidgets.QListView):
             index = self.object_id.index(object_id)
             self.category_id[index] = category_id
             self.object[object_id] = category_id
-            object_list = [f"{self.label_list[id]} ({self.object_id[idx]})" for idx, id in enumerate(self.category_id)]
-            # object_list = [f"{self.label_list[id]}_{object_id[id]}" for id in self.category_id] 
+            object_list = [
+                f"{self.label_list[id]} ({self.object_id[idx]})"
+                for idx, id in enumerate(self.category_id)
+            ]
+            # object_list = [f"{self.label_list[id]}_{object_id[id]}" for id in self.category_id]
             self.model.setStringList(object_list)
-    
+
     def refresh_list(self, label_list: list):
         """
         Refresh the list view
         """
         self.label_list = label_list
-        object_list = [f"{self.label_list[id]} ({self.object_id[idx]})" for idx, id in enumerate(self.category_id)]
+        object_list = [
+            f"{self.label_list[id]} ({self.object_id[idx]})"
+            for idx, id in enumerate(self.category_id)
+        ]
         # object_list = [f"{self.label_list[id]}_{id}" for id in self.category_id]
         self.model.setStringList(object_list)
-    
+
     def on_item_clicked(self, index):
         """
         Emits the signal with the currently selected item's text.
@@ -564,7 +583,7 @@ class CustomObjectListWidget(QtWidgets.QListView):
         # print(f"Item: {self.model.data(index, Qt.DisplayRole)}")
         id = self.object_id[index.row()]
         self.object_selection_notification_slot.emit(id)
-    
+
     def mousePressEvent(self, event) -> None:
         """
         Handles mouse press events on the list view. Toggles the checkbox state of
@@ -578,7 +597,7 @@ class CustomObjectListWidget(QtWidgets.QListView):
             self.object_selection_notification_slot.emit(-1)
         # Call the parent class's mousePressEvent to handle normal clicks
         super().mousePressEvent(event)
-    
+
     # def contextMenuEvent(self, event):
     #     """
     #     Handles the context menu event, providing an option to edit the selected item.
@@ -587,20 +606,20 @@ class CustomObjectListWidget(QtWidgets.QListView):
     #         event (QContextMenuEvent): The context menu event object.
     #     """
     #     # Get the index at the mouse position
-    #     index = self.indexAt(event.pos()) 
+    #     index = self.indexAt(event.pos())
     #     # Check if the index is valid
     #     if index.isValid():
     #         # Create a context menu
-    #         menu = QMenu(self) 
+    #         menu = QMenu(self)
     #         # Create an action to edit the item
     #         edit_action = QAction('Edit', self)
     #         # Connect the action to the edit_label method
-    #         edit_action.triggered.connect(lambda: self.edit_label_at_index(index)) 
+    #         edit_action.triggered.connect(lambda: self.edit_label_at_index(index))
     #         # Add the action to the menu
     #         menu.addAction(edit_action)
     #         # Show the context menu at the mouse position
     #         menu.exec_(event.globalPos())
-    
+
     # def edit_label_at_index(self, index):
     #     """
     #     Triggers inline editing for the selected item.
@@ -622,10 +641,6 @@ class CustomObjectListWidget(QtWidgets.QListView):
     #     """
     #     row = top_left.row()
     #     # get index of the item and old data
-        
-
-
-
 
     #     new_data = self.model.data(top_left, Qt.EditRole)
     #     print(f"Item at row {row} was changed to '{new_data}'")

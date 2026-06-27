@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QStyledItemDelegate, QMessageBox, QLineEdit
 from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QLineEdit, QMessageBox, QStyledItemDelegate
 
 """
 CustomDelegate: Now checks for duplicates in the QStringList
@@ -15,6 +15,7 @@ allowing you to edit list items and ensure that no duplicates are added.
 
 """
 
+
 class CustomDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -23,12 +24,12 @@ class CustomDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         """
         Create and return a new editor widget for the item.
-        
+
         Args:
             parent (QWidget): The parent widget.
             option (QStyleOptionViewItem): The option for the item.
             index (QModelIndex): The index of the item.
-        
+
         Returns:
             QLineEdit: The editor widget.
         """
@@ -38,7 +39,7 @@ class CustomDelegate(QStyledItemDelegate):
     def setEditorData(self, editor, index):
         """
         Set the data for the editor widget.
-        
+
         Args:
             editor (QWidget): The editor widget.
             index (QModelIndex): The index of the item.
@@ -49,7 +50,7 @@ class CustomDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
         """
         Retrieve the data from the editor widget and set it in the model.
-        
+
         Args:
             editor (QWidget): The editor widget.
             model (QAbstractItemModel): The model.
@@ -60,7 +61,11 @@ class CustomDelegate(QStyledItemDelegate):
         for row in range(model.rowCount()):
             item_text = model.data(model.index(row, 0), Qt.DisplayRole)
             if item_text == new_text and model.index(row, 0) != index:
-                QMessageBox.warning(self.parent_view, 'Validation Error', 'The entered text already exists in the list.')
+                QMessageBox.warning(
+                    self.parent_view,
+                    "Validation Error",
+                    "The entered text already exists in the list.",
+                )
                 return
 
         model.setData(index, new_text, Qt.EditRole)
@@ -68,7 +73,7 @@ class CustomDelegate(QStyledItemDelegate):
     def commitData(self, editor):
         """
         Validate and commit the edited data.
-        
+
         Args:
             editor (QWidget): The editor widget.
         """

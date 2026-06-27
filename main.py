@@ -1,28 +1,28 @@
-from enum import Enum
+import os
 import shutil
 import sys
-import os
-from PyQt5 import QtCore, QtGui, QtWidgets
-from layout import Ui_MainWindow
-from PyQt5.QtWidgets import QFileDialog, QSplitter, QVBoxLayout, QWidget
-from labelvim.utils.utils import get_image_list, return_mattching
-from labelvim.utils.annotation_manager import AnnotationManager
-from labelvim.utils.label_list_reader import label_list_reader
+from enum import Enum
 
-from labelvim.utils.config import ANNOTATION_TYPE, ANNOTATION_MODE, OBJECT_LIST_ACTION
-from labelvim.widgets.task_selection import TaskSelectionDialog
-from labelvim.widgets.canvas_widget import CanvasWidget
-from labelvim.widgets.list_widgets import (
-    CustomListViewWidget,
-    CustomLabelWidget,
-    CustomObjectListWidget,
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QFileDialog
+
+from labelvim.utils.annotation_manager import AnnotationManager
+from labelvim.utils.config import (
+    ANNOTATION_MODE,
+    ANNOTATION_TYPE,
+    ConfigSpecHandler,
 )
+from labelvim.utils.label_list_reader import label_list_reader
+from labelvim.utils.utils import get_image_list, return_mattching
 from labelvim.widgets.export_file import ExportFileDialog
-from labelvim.utils.config import ConfigSpecHandler
+from labelvim.widgets.task_selection import TaskSelectionDialog
+from layout import Ui_MainWindow
+
 
 class Mode(Enum):
     NORMAL = 1
     EDIT = 2
+
 
 class ModalState:
     def __init__(self):
@@ -31,7 +31,7 @@ class ModalState:
 
 class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
-        super(LabelVim, self).__init__()
+        super().__init__()
         self.setupUi(self)
         self.installEventFilter(self)
         self.img_file_list = []
@@ -73,9 +73,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.actionPrevious.triggered.connect(self.__previous)
         self.actionSave.triggered.connect(self.__save)
         self.actionSave_Mask.triggered.connect(self.__save_mask_flag_set)
-        self.actionSave_Mask_include_img.triggered.connect(
-            self.__save_mask_include_img_flag_set
-        )
+        self.actionSave_Mask_include_img.triggered.connect(self.__save_mask_include_img_flag_set)
 
         self.actionZoom_In.triggered.connect(self.__zoom_in)
         self.actionZoom_Out.triggered.connect(self.__zoom_out)
@@ -91,16 +89,12 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Connect signals and slots
         self.FileListWidget.notify_selected_item.connect(self.__load_image)
-        self.canvas_widget.update_label_list_slot_receiver.emit(
-            self.LabelWidget.label_list
-        )
+        self.canvas_widget.update_label_list_slot_receiver.emit(self.LabelWidget.label_list)
         self.canvas_widget.update_label_list_slot_transmitter.connect(
             self.update_label_list_to_Label_Widget
         )
         self.canvas_widget.scale_factor_slot.connect(self.update_zoom_label)
-        self.canvas_widget.object_list_action_slot.connect(
-            self.update_data_to_ObjectListWidget
-        )
+        self.canvas_widget.object_list_action_slot.connect(self.update_data_to_ObjectListWidget)
         self.LabelWidget.update_label_list_slot_transmitter.connect(
             self.update_label_list_to_Display
         )
@@ -115,14 +109,14 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.modal_state = ModalState()
 
     def eventFilter(self, source, event):
-        #if event.type() in (QtCore.QEvent.KeyPress, QtCore.QEvent.KeyRelease):
+        # if event.type() in (QtCore.QEvent.KeyPress, QtCore.QEvent.KeyRelease):
         if event.type() == QtCore.QEvent.KeyRelease:
-            #print("received event type:", event.type())
+            # print("received event type:", event.type())
             key = event.key()
             is_shift_pressed = event.modifiers() & QtCore.Qt.ShiftModifier
-            print("is_shift_pressed:",is_shift_pressed)
+            print("is_shift_pressed:", is_shift_pressed)
             key_text = QtGui.QKeySequence(key).toString()
-            #self.modeLabel.setText("Keys:" + key_text + "self.modal_state.state:" + str(self.modal_state.state))
+            # self.modeLabel.setText("Keys:" + key_text + "self.modal_state.state:" + str(self.modal_state.state))
             if key_text == "I" and self.modal_state.state == Mode.NORMAL:
                 self.modal_state.state = Mode.EDIT
                 self.modeLabel.setText("EDIT")
@@ -172,7 +166,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         self.load_dir = QFileDialog.getExistingDirectory(self, "Select a Directory")
         self.__load_directory_data()
-    
+
     def __load_directory_data(self):
         if self.load_dir:
             # self.__reset()
@@ -182,8 +176,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             )
             self.FileListWidget.update_list.emit(self.img_file_list)
             self.img_list = [
-                os.path.splitext(os.path.split(file)[-1])[0]
-                for file in self.img_file_list
+                os.path.splitext(os.path.split(file)[-1])[0] for file in self.img_file_list
             ]
             self.listCountLabel.setText(f"Loaded {len(self.img_list)} images")
             if self.img_file_list:
@@ -212,9 +205,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             if f_name in self.json_list:
                 print(f"JSON file found for {f_name}")
                 print(f"JSON file found for {file_name}")
-                self.annotation_manager = AnnotationManager(
-                    self.save_dir, f_name + ".json"
-                )
+                self.annotation_manager = AnnotationManager(self.save_dir, f_name + ".json")
                 self.annotation_data = self.annotation_manager.annotation
                 self.canvas_widget.annotation_data_slot_receiver.emit(
                     self.annotation_data["annotations"]
@@ -261,9 +252,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                 print(f"Config Parm: {self.config_parm}")
                 if "annotation_type" in self.config_parm.keys():
                     print(f"Annotation Type: {self.config_parm['annotation_type']}")
-                    self.annotation_type = ANNOTATION_TYPE(
-                        self.config_parm["annotation_type"]
-                    )
+                    self.annotation_type = ANNOTATION_TYPE(self.config_parm["annotation_type"])
                     print(f"Annotation Type: {self.annotation_type}")
                     if self.annotation_type == ANNOTATION_TYPE.NONE:
                         self.show_task_selection_dialog()
@@ -299,8 +288,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
 
             # Extract the base names (without extension) of JSON files
             self.json_list = [
-                os.path.splitext(os.path.split(file)[-1])[0]
-                for file in self.json_file_list
+                os.path.splitext(os.path.split(file)[-1])[0] for file in self.json_file_list
             ]
 
             # Update the label list manager's path and load the label file if it exists
@@ -322,8 +310,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             if self.json_list and self.img_list:
                 self.json_list = return_mattching(self.json_list, self.img_list)
                 self.json_file_list = [
-                    os.path.join(self.save_dir, file + ".json")
-                    for file in self.json_list
+                    os.path.join(self.save_dir, file + ".json") for file in self.json_list
                 ]
             print(
                 f"Total JSON file in the selected directory {self.save_dir}: {len(self.json_file_list)}"
@@ -383,17 +370,13 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                 # print(f"JSON file found for {file_name}")
                 self.json_list.remove(file_name)
                 # print(f"JSON List: {self.json_list}")
-                self.json_file_list.remove(
-                    os.path.join(self.save_dir, file_name + ".json")
-                )
+                self.json_file_list.remove(os.path.join(self.save_dir, file_name + ".json"))
                 # print(f"JSON File List: {self.json_file_list}")
                 if os.path.exists(os.path.join(self.save_dir, file_name + ".json")):
                     # print(f"{os.path.join(self.save_dir, file_name+'.json')}")
                     # print(os.path.exists(os.path.join(self.save_dir, file_name+'.json')))
                     os.remove(os.path.join(self.save_dir, file_name + ".json"))
-                    print(
-                        os.path.exists(os.path.join(self.save_dir, file_name + ".json"))
-                    )
+                    print(os.path.exists(os.path.join(self.save_dir, file_name + ".json")))
             self.FileListWidget.remove_selected_item()
 
     def __save_is_separate_from_load_dir(self):
@@ -443,9 +426,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             if 0 <= self.current_index < len(self.img_list):
                 file_name = self.img_list[self.current_index]
                 self.json_list.append(file_name)
-                self.json_file_list.append(
-                    os.path.join(self.save_dir, file_name + ".json")
-                )
+                self.json_file_list.append(os.path.join(self.save_dir, file_name + ".json"))
             else:
                 print("Invalid index. Cannot update JSON lists.")
         else:
@@ -470,9 +451,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                 print(f"JSON file found for {current_file}")
 
                 # Initialize the annotation manager and load annotation data
-                self.annotation_manager = AnnotationManager(
-                    self.save_dir, current_file + ".json"
-                )
+                self.annotation_manager = AnnotationManager(self.save_dir, current_file + ".json")
                 self.annotation_data = self.annotation_manager.annotation
                 # print(f"next Annotation Data: {self.annotation_data}")
 
@@ -517,9 +496,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                 print(f"JSON file found for {current_file}")
 
                 # Initialize the annotation manager and load annotation data
-                self.annotation_manager = AnnotationManager(
-                    self.save_dir, current_file + ".json"
-                )
+                self.annotation_manager = AnnotationManager(self.save_dir, current_file + ".json")
                 self.annotation_data = self.annotation_manager.annotation
                 # print(f"previous Annotation Data: {self.annotation_data}")
                 # Emit the annotation data to the display
@@ -558,9 +535,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             # Initialize the annotation manager if not already initialized
             if self.annotation_manager is None:
                 current_image = self.img_list[self.current_index]
-                self.annotation_manager = AnnotationManager(
-                    self.save_dir, current_image + ".json"
-                )
+                self.annotation_manager = AnnotationManager(self.save_dir, current_image + ".json")
                 self.annotation_manager.update_basic_info(
                     os.path.basename(self.img_file_list[self.current_index]),
                     self.canvas_widget.original_pixmap.height(),

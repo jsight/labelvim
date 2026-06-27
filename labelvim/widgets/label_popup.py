@@ -1,12 +1,32 @@
-from PyQt5.QtWidgets import QLabel ,QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QListWidget, QPushButton, QMessageBox, QComboBox
-from PyQt5.QtCore import Qt, pyqtSignal
 from enum import Enum
+
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+)
+
 from labelvim.utils.config import ANNOTATION_TYPE
 
+
 class LabelPopup(QDialog):
-    def __init__(self, items: list, data: list, annotation_type: Enum, update_label_list_slot_transmitter: pyqtSignal, parent=None):
-        super(LabelPopup, self).__init__(parent)
-        
+    def __init__(
+        self,
+        items: list,
+        data: list,
+        annotation_type: Enum,
+        update_label_list_slot_transmitter: pyqtSignal,
+        parent=None,
+    ):
+        super().__init__(parent)
+
         self.setWindowTitle("Select or Add Item")
         self.setGeometry(100, 100, 300, 400)
         self.data = data
@@ -33,30 +53,31 @@ class LabelPopup(QDialog):
             # self.id_combo.addItems([str(i) for i in self.id])
             line_edit_id_combo_layout.addWidget(self.id_combo)
         self.layout.addLayout(line_edit_id_combo_layout)
-        
+
         # self.line_edit = QLineEdit(self)
         # self.line_edit.setPlaceholderText("Type to filter or add new item")
         # self.line_edit.textChanged.connect(self.filter_items)
         # self.layout.addWidget(self.line_edit)
-        
+
         self.list_widget = QListWidget(self)
         self.list_widget.addItems(items)
         self.list_widget.itemClicked.connect(self.item_selected)
         self.list_widget.itemActivated.connect(self.item_selected)
         self.layout.addWidget(self.list_widget)
-        
+
         self.add_button = QPushButton("Add", self)
         self.add_button.clicked.connect(self.add_item)
         self.layout.addWidget(self.add_button)
-        
-        
-        self.update_label_list_slot_transmitter = update_label_list_slot_transmitter # Signal to update the label list in the main window
-    
+
+        self.update_label_list_slot_transmitter = (
+            update_label_list_slot_transmitter  # Signal to update the label list in the main window
+        )
+
     def update_id_combo(self):
         self.id_combo.clear()
         self.id = [str(-1)]
         # print(self.data["annotations"])
-        self.id = self.id + [str(i['id']) for i in self.data]
+        self.id = self.id + [str(i["id"]) for i in self.data]
         # print(self.id)
         self.id_combo.addItems(self.id)
 
@@ -69,10 +90,15 @@ class LabelPopup(QDialog):
         if self.annotation_type == ANNOTATION_TYPE.POLYGON:
             self.id_combo.clear()
             self.id = [str(-1)]
-            self.id = self.id + [str(i['id']) for item in filtered_items for i in self.data if item.lower() == self.items[i["category_id"]].lower()]
+            self.id = self.id + [
+                str(i["id"])
+                for item in filtered_items
+                for i in self.data
+                if item.lower() == self.items[i["category_id"]].lower()
+            ]
             self.id_combo.addItems(self.id)
         self.text_filter = False
-    
+
     def update_list_widget(self):
         if not self.text_filter:
             self.list_widget.clear()
@@ -90,21 +116,22 @@ class LabelPopup(QDialog):
 
             self.list_widget.addItems([self.items[category_id]])
             # self.list_widget.addItems([item for item in self.items if item.lower() == self.items[int(self.id_combo.currentText())].lower()])
-        
-    
+
     def add_item(self):
         """Add a new item to the list if it doesn't already exist."""
         text = self.line_edit.text().strip()
         if text and text not in self.items:
             self.items.append(text)
             self.list_widget.addItem(text)
-            self.update_label_list_slot_transmitter.emit(self.items) # Transmitting the signal to update the label list
+            self.update_label_list_slot_transmitter.emit(
+                self.items
+            )  # Transmitting the signal to update the label list
             # QMessageBox.information(self, "Item Added", f"'{text}' has been added to the list.")
         elif text in self.items:
             QMessageBox.warning(self, "Item Exists", f"'{text}' already exists in the list.")
         else:
             QMessageBox.warning(self, "Empty Input", "Please enter a valid item name.")
-    
+
     def item_selected(self, item):
         """Handle the selection of an item."""
         self.selected_item = item.text()
@@ -113,7 +140,7 @@ class LabelPopup(QDialog):
             self.select_id = int(self.id_combo.currentText())
         # self.select_id = int(self.id_combo.currentText())
         self.accept()  # Close the dialog and return
-    
+
     def get_selected_item(self):
         """Return the selected item and its index."""
         return self.selected_item, self.selected_index, self.select_id

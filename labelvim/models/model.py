@@ -1,18 +1,19 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
-from typing import List, Optional
+
 
 @dataclass
 class Labels:
-    labels: List[str]
+    labels: list[str]
 
     def add_label(self, label):
         if label in self.labels:
             return
         self.labels.append(label)
-    
+
     def get_index_for_label(self, label):
         return self.labels.index(label)
+
 
 @dataclass
 class Point:
@@ -20,10 +21,12 @@ class Point:
     y: float
     selected: bool = False
 
+
 @dataclass
 class Shape(ABC):
-    id: Optional[int]
-    category_id: Optional[int]
+    id: int | None
+    category_id: int | None
+
 
 @dataclass
 class Rectangle(Shape):
@@ -35,25 +38,30 @@ class Rectangle(Shape):
         assert self.topleft.y <= self.bottomright.y, "topleft.y must be <= bottomright.y"
 
     def to_legacy_json(self):
-        return { "bbox": [
-            self.topleft.x,
-            self.topleft.y,
-            self.bottomright.x - self.topleft.x,
-            self.bottomright.y - self.topleft.y,
-        ]}
+        return {
+            "bbox": [
+                self.topleft.x,
+                self.topleft.y,
+                self.bottomright.x - self.topleft.x,
+                self.bottomright.y - self.topleft.y,
+            ]
+        }
 
     def edit(self) -> None:
         # Placeholder for editing implementation
         pass
 
     def contains(self, point: Point) -> bool:
-        return (self.topleft.x <= point.x <= self.bottomright.x and
-                self.topleft.y <= point.y <= self.bottomright.y)
+        return (
+            self.topleft.x <= point.x <= self.bottomright.x
+            and self.topleft.y <= point.y <= self.bottomright.y
+        )
+
 
 @dataclass
 class Polygon(Shape):
     rectangle: Rectangle
-    points: List[Point]
+    points: list[Point]
 
     def edit(self) -> None:
         # Placeholder for editing implementation
@@ -63,23 +71,13 @@ class Polygon(Shape):
         # Placeholder for point-in-polygon algorithm
         return False
 
+
 # Example usage
 if __name__ == "__main__":
     # Create a rectangle
-    rect = Rectangle(
-        name="box1",
-        topleft=Point(0.1, 0.1),
-        bottomright=Point(0.5, 0.5)
-    )
+    rect = Rectangle(name="box1", topleft=Point(0.1, 0.1), bottomright=Point(0.5, 0.5))
     print(f"Rectangle {rect.name}: {rect.topleft}, {rect.bottomright}")
 
     # Create a polygon
-    poly = Polygon(
-        name="triangle1",
-        points=[
-            Point(0.2, 0.2),
-            Point(0.4, 0.2),
-            Point(0.3, 0.4)
-        ]
-    )
+    poly = Polygon(name="triangle1", points=[Point(0.2, 0.2), Point(0.4, 0.2), Point(0.3, 0.4)])
     print(f"Polygon {poly.name} with {len(poly.points)} points")

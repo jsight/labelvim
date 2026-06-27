@@ -1,7 +1,11 @@
-import yaml
-from labelvim.utils.utils import get_project_root  # Utility function to get the project root directory
-
 import os
+
+import yaml
+
+from labelvim.utils.utils import (
+    get_project_root,  # Utility function to get the project root directory
+)
+
 
 class LabelListReader:
     """
@@ -20,7 +24,7 @@ class LabelListReader:
             label_list_path (str, optional): Path to the YAML file. If not provided, initializes an empty list.
         """
         self.label_list_path = label_list_path
-        print("Setting label list path to:",label_list_path)
+        print("Setting label list path to:", label_list_path)
         self.label_list = [] if label_list_path is None else self.read()
 
     def read(self):
@@ -29,14 +33,14 @@ class LabelListReader:
 
         Returns:
             list: The list of labels read from the file.
-        
+
         Raises:
             FileNotFoundError: If the specified YAML file does not exist.
         """
         print("Reading file: ", self.label_list_path)
-        with open(self.label_list_path, 'r') as f:
+        with open(self.label_list_path) as f:
             self.label_list = yaml.safe_load(f)
-        print("Label list:",self.label_list)
+        print("Label list:", self.label_list)
         return self.label_list
 
     def get(self):
@@ -55,7 +59,7 @@ class LabelListReader:
         Args:
             label_list (list): The list of labels to write to the file.
         """
-        with open(self.label_list_path, 'w') as f:
+        with open(self.label_list_path, "w") as f:
             yaml.dump(label_list, f, indent=4)
 
     def update(self, label_list):
@@ -68,10 +72,15 @@ class LabelListReader:
         self.label_list = label_list
         self.write(label_list)
 
+
 # Example usage
 parent_dir = get_project_root()  # Get the root directory of the project
-label_list_path = os.path.join(parent_dir, 'labeled_list.yaml')  # Construct the full path to the YAML file
-label_list_reader = LabelListReader(label_list_path)  # Create an instance of LabelListReader with the file path
+label_list_path = os.path.join(
+    parent_dir, "labeled_list.yaml"
+)  # Construct the full path to the YAML file
+label_list_reader = LabelListReader(
+    label_list_path
+)  # Create an instance of LabelListReader with the file path
 
 if __name__ == "__main__":
     # Read the label list from the file
@@ -79,7 +88,7 @@ if __name__ == "__main__":
     print("Labels read from file:", labels)
 
     # Update the label list
-    new_labels = ['label1', 'label2', 'label3']
+    new_labels = ["label1", "label2", "label3"]
     label_list_reader.update(new_labels)
     print("Updated labels:", label_list_reader.get())
 

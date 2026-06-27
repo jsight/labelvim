@@ -1,5 +1,6 @@
 import json
 
+
 class AnnotationManager:
     """
     A class to manage image annotations for object detection or segmentation tasks.
@@ -12,19 +13,19 @@ class AnnotationManager:
     Methods:
         __init__(self, images=None, annotations=None, categories=None):
             Initializes the manager with optional lists of images, annotations, and categories.
-        
+
         add_annotation(self, annotation):
             Adds a new annotation to the list.
-        
+
         update_annotation(self, annotation_id, updated_annotation):
             Updates an existing annotation by ID.
-        
+
         delete_annotation(self, annotation_id):
             Deletes an annotation by ID.
-        
+
         save_annotations_to_json(self, output_file):
             Saves the current images, annotations, and categories to a JSON file.
-        
+
         load_annotations_from_json(self, input_file):
             Loads images, annotations, and categories from a JSON file.
     """
@@ -95,7 +96,7 @@ class AnnotationManager:
             True
         """
         for i, annotation in enumerate(self.annotations):
-            if annotation['id'] == annotation_id:
+            if annotation["id"] == annotation_id:
                 self.annotations[i] = updated_annotation
                 return True
         return False
@@ -110,7 +111,7 @@ class AnnotationManager:
         Example:
             >>> manager.delete_annotation(1)
         """
-        self.annotations = [ann for ann in self.annotations if ann['id'] != annotation_id]
+        self.annotations = [ann for ann in self.annotations if ann["id"] != annotation_id]
 
     def save_annotations_to_json(self, output_file):
         """
@@ -125,10 +126,10 @@ class AnnotationManager:
         data = {
             "images": self.images,
             "annotations": self.annotations,
-            "categories": self.categories
+            "categories": self.categories,
         }
 
-        with open(output_file, 'w') as json_file:
+        with open(output_file, "w") as json_file:
             json.dump(data, json_file, indent=4)
 
     def load_annotations_from_json(self, input_file):
@@ -144,25 +145,26 @@ class AnnotationManager:
             >>> print(manager.annotations)
             >>> print(manager.categories)
         """
-        with open(input_file, 'r') as json_file:
+        with open(input_file) as json_file:
             data = json.load(json_file)
-            self.images = data.get('images', [])
-            self.annotations = data.get('annotations', [])
-            self.categories = data.get('categories', [])
+            self.images = data.get("images", [])
+            self.annotations = data.get("annotations", [])
+            self.categories = data.get("categories", [])
+
 
 # Example usage:
 if __name__ == "__main__":
     # Example image data
     images = [
         {"id": 1, "file_name": "image1.jpg", "width": 1024, "height": 768},
-        {"id": 2, "file_name": "image2.jpg", "width": 1024, "height": 768}
+        {"id": 2, "file_name": "image2.jpg", "width": 1024, "height": 768},
     ]
 
     # Example categories
     categories = [
         {"id": 1, "name": "cat", "supercategory": "animal"},
         {"id": 2, "name": "dog", "supercategory": "animal"},
-        {"id": 3, "name": "car", "supercategory": "vehicle"}
+        {"id": 3, "name": "car", "supercategory": "vehicle"},
     ]
 
     # Initialize the manager
@@ -176,7 +178,7 @@ if __name__ == "__main__":
         "segmentation": [[150, 250, 300, 250, 300, 400, 150, 400]],
         "area": 22500,
         "bbox": [150, 250, 150, 150],
-        "iscrowd": 0
+        "iscrowd": 0,
     }
     manager.add_annotation(new_annotation)
 
@@ -188,7 +190,7 @@ if __name__ == "__main__":
         "segmentation": [[160, 260, 310, 260, 310, 410, 160, 410]],
         "area": 24000,
         "bbox": [160, 260, 150, 150],
-        "iscrowd": 0
+        "iscrowd": 0,
     }
     manager.update_annotation(1, updated_annotation)
 
