@@ -1,8 +1,11 @@
+import logging
 import os
 
 import cv2
 import numpy as np
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 # random_colors_palette = np.random.randint(0, 255, (30, 3))
 random_colors_palette = np.array(
@@ -55,9 +58,9 @@ def save_mask(mask, save_dir, file_name):
     """
     mask = Image.fromarray(mask)
     os.makedirs(os.path.join(save_dir, "mask"), exist_ok=True)
-    print(os.path.join(save_dir, "mask", file_name))
-    print(os.listdir(os.path.join(save_dir, "mask")))
-    print(os.listdir(save_dir))
+    logger.debug(os.path.join(save_dir, "mask", file_name))
+    logger.debug(os.listdir(os.path.join(save_dir, "mask")))
+    logger.debug(os.listdir(save_dir))
     # os.listdir(os.path.join(save_dir, 'mask'))
     mask.save(os.path.join(save_dir, "mask", file_name))
 

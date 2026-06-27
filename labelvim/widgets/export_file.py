@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import random
 import shutil
@@ -29,6 +30,8 @@ from tqdm import tqdm
 from labelvim.utils.config import ANNOTATION_TYPE, ExportType
 from labelvim.utils.label_list_reader import LabelListReader
 from labelvim.utils.save_mask import random_colors_palette
+
+logger = logging.getLogger(__name__)
 
 
 def xywh2xyxy(x, y, w, h):
@@ -813,9 +816,9 @@ class ExportFileDialog(QDialog):
                     file for file in os.listdir(self.save_dir) if file.endswith(".json")
                 ]
                 # print(self.file_list)
-                print(f"file length: {len(self.file_list)}")
+                logger.debug(f"file length: {len(self.file_list)}")
         except FileNotFoundError:
-            print("File not found")
+            logger.debug("File not found")
 
     def _init_ui(self):
         """Initialize the UI components."""
@@ -935,7 +938,7 @@ class ExportFileDialog(QDialog):
         self.include_mask = self.include_mask_checkbox.isChecked()
         if self.task_type == ANNOTATION_TYPE.POLYGON:
             if self.include_mask:
-                print(f"task type: {self.task_type}")
+                logger.debug(f"task type: {self.task_type}")
                 self.include_img_checkbox = QCheckBox("Include img", self)
                 self.include_img_checkbox.stateChanged.connect(self._on_img_checkbox_state_changed)
                 self.mask_layout.addWidget(self.include_img_checkbox)

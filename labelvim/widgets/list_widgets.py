@@ -1,3 +1,4 @@
+import logging
 from enum import Enum
 
 from PyQt5 import QtWidgets
@@ -10,6 +11,8 @@ from labelvim.models.model import Shape
 # External imports
 from labelvim.utils.config import ANNOTATION_TYPE, OBJECT_LIST_ACTION
 from labelvim.widgets.custom_delegates import CustomDelegate
+
+logger = logging.getLogger(__name__)
 
 
 class CustomListViewWidget(QtWidgets.QListView):
@@ -60,7 +63,7 @@ class CustomListViewWidget(QtWidgets.QListView):
         Args:
             label_list (list, optional): A list of label names to display. Defaults to an empty list.
         """
-        print(f"Label List in set label list: {label_list}")
+        logger.debug(f"Label List in set label list: {label_list}")
         self.model.clear()
         if isinstance(label_list, list) and len(label_list) > 0:
             self.label_list = label_list
@@ -81,7 +84,7 @@ class CustomListViewWidget(QtWidgets.QListView):
             current (QModelIndex): The index of the current item.
             previous (QModelIndex): The index of the previously selected item.
         """
-        print(f"Current: {current.row()}")
+        logger.debug(f"Current: {current.row()}")
         current_idx = current.row()
         if current_idx < 0:
             current_idx = 0
@@ -178,7 +181,7 @@ class CustomListViewWidget(QtWidgets.QListView):
         # print(f"model row count {self.model.rowCount()}")
         if index.isValid():
             item = self.model.itemFromIndex(index)
-            print(f"Item: {item.text()}")
+            logger.debug(f"Item: {item.text()}")
             current_state = item.data(Qt.UserRole + 1)
 
             # Toggle the state
@@ -254,7 +257,7 @@ class CustomLabelWidget(QtWidgets.QListView):
         Args:
             label_list (list, optional): A list of label names to display. Defaults to an empty list.
         """
-        print("Setting label list to:", label_list)
+        logger.debug("%s %s", "Setting label list to:", label_list)
         # Check if the label list is a non-empty list
         if isinstance(label_list, list) and len(label_list) > 0:
             # Clear the model before updating
@@ -262,7 +265,7 @@ class CustomLabelWidget(QtWidgets.QListView):
             # Update the label list and model
             self.label_list = label_list
             # update the model
-            print(f"Label List in set label list: {self.label_list}")
+            logger.debug(f"Label List in set label list: {self.label_list}")
             self.model.setStringList(self.label_list)
 
     def clear_list(self):
@@ -296,7 +299,7 @@ class CustomLabelWidget(QtWidgets.QListView):
         # }.get(annotation_type, ANNOTATION_TYPE.NONE)
         # Print the annotation type
         self.annotation_type = annotation_type
-        print(f"Annotation Type: {self.annotation_type}")
+        logger.debug(f"Annotation Type: {self.annotation_type}")
 
     def mouseDoubleClickEvent(self, event):
         """
@@ -487,8 +490,8 @@ class CustomObjectListWidget(QtWidgets.QListView):
         # Update the label list and model
         self.category_id = category_id if category_id is not None else []
         self.object_id = object_id if object_id is not None else []
-        print(f"Category ID: {category_id}")
-        print(f"Object ID: {object_id}")
+        logger.debug(f"Category ID: {category_id}")
+        logger.debug(f"Object ID: {object_id}")
         object_list = [
             f"{self.label_list[id]} ({self.object_id[idx]})"
             for idx, id in enumerate(self.category_id)
@@ -531,7 +534,7 @@ class CustomObjectListWidget(QtWidgets.QListView):
         Args:
             label (str): The label to remove.
         """
-        print(f"Data To Be remoed: {data}")
+        logger.debug(f"Data To Be remoed: {data}")
         category_id = [label["category_id"] for label in data]
         object_id = [label["id"] for label in data]
         self.object = {label["id"]: label["category_id"] for label in data}
@@ -591,7 +594,7 @@ class CustomObjectListWidget(QtWidgets.QListView):
         if not index.isValid():
             # Clear the selection if the click is outside items
             self.clearSelection()
-            print("Clearing selection")
+            logger.debug("Clearing selection")
             self.object_selection_notification_slot.emit(-1)
         # Call the parent class's mousePressEvent to handle normal clicks
         super().mousePressEvent(event)

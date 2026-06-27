@@ -1,3 +1,4 @@
+import logging
 from enum import Enum
 
 from PyQt5.QtCore import pyqtSignal
@@ -14,6 +15,8 @@ from PyQt5.QtWidgets import (
 )
 
 from labelvim.utils.config import ANNOTATION_TYPE
+
+logger = logging.getLogger(__name__)
 
 
 class LabelPopup(QDialog):
@@ -106,7 +109,7 @@ class LabelPopup(QDialog):
                 self.list_widget.addItems(self.items)
             else:
                 id = int(self.id_combo.currentText())
-                print(f" id in labepuop: {id}")
+                logger.debug(f" id in labepuop: {id}")
                 for i in self.data:
                     if i["id"] == id:
                         category_id = int(i["category_id"])

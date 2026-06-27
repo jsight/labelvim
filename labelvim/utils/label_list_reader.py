@@ -1,3 +1,4 @@
+import logging
 import os
 
 import yaml
@@ -5,6 +6,8 @@ import yaml
 from labelvim.utils.utils import (
     get_project_root,  # Utility function to get the project root directory
 )
+
+logger = logging.getLogger(__name__)
 
 
 class LabelListReader:
@@ -24,7 +27,7 @@ class LabelListReader:
             label_list_path (str, optional): Path to the YAML file. If not provided, initializes an empty list.
         """
         self.label_list_path = label_list_path
-        print("Setting label list path to:", label_list_path)
+        logger.debug("%s %s", "Setting label list path to:", label_list_path)
         self.label_list = [] if label_list_path is None else self.read()
 
     def read(self):
@@ -37,10 +40,10 @@ class LabelListReader:
         Raises:
             FileNotFoundError: If the specified YAML file does not exist.
         """
-        print("Reading file: ", self.label_list_path)
+        logger.debug("%s %s", "Reading file: ", self.label_list_path)
         with open(self.label_list_path) as f:
             self.label_list = yaml.safe_load(f)
-        print("Label list:", self.label_list)
+        logger.debug("%s %s", "Label list:", self.label_list)
         return self.label_list
 
     def get(self):
