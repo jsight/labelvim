@@ -81,17 +81,3 @@ label_list_path = os.path.join(
 label_list_reader = LabelListReader(
     label_list_path
 )  # Create an instance of LabelListReader with the file path
-
-if __name__ == "__main__":
-    # Read the label list from the file
-    labels = label_list_reader.read()
-    print("Labels read from file:", labels)
-
-    # Update the label list
-    new_labels = ["label1", "label2", "label3"]
-    label_list_reader.update(new_labels)
-    print("Updated labels:", label_list_reader.get())
-
-    # Write the updated label list to the file
-    label_list_reader.write(new_labels)
-    print("Labels written to file:", label_list_reader.get())

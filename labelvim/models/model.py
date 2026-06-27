@@ -70,14 +70,3 @@ class Polygon(Shape):
     def contains(self, point: Point) -> bool:
         # Placeholder for point-in-polygon algorithm
         return False
-
-
-# Example usage
-if __name__ == "__main__":
-    # Create a rectangle
-    rect = Rectangle(name="box1", topleft=Point(0.1, 0.1), bottomright=Point(0.5, 0.5))
-    print(f"Rectangle {rect.name}: {rect.topleft}, {rect.bottomright}")
-
-    # Create a polygon
-    poly = Polygon(name="triangle1", points=[Point(0.2, 0.2), Point(0.4, 0.2), Point(0.3, 0.4)])
-    print(f"Polygon {poly.name} with {len(poly.points)} points")

@@ -1007,17 +1007,3 @@ class ExportFileDialog(QDialog):
                 return
         self.accept()
         QMessageBox.critical(self, "Export Failed", "Failed to export the file.")
-
-
-if __name__ == "__main__":
-    import sys
-
-    from PyQt5.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    dialog = ExportFileDialog()
-    dialog.show()
-    if dialog.exec_():
-        print("Task Type:", dialog.task_type)
-        print("Export Type:", dialog.export_type)
-        print("Include Mask:", dialog.include_mask)
