@@ -6,12 +6,12 @@ from dataclasses import dataclass
 class Labels:
     labels: list[str]
 
-    def add_label(self, label):
+    def add_label(self, label: str) -> None:
         if label in self.labels:
             return
         self.labels.append(label)
 
-    def get_index_for_label(self, label):
+    def get_index_for_label(self, label: str) -> int:
         return self.labels.index(label)
 
 
@@ -33,11 +33,11 @@ class Rectangle(Shape):
     topleft: Point
     bottomright: Point
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         assert self.topleft.x <= self.bottomright.x, "topleft.x must be <= bottomright.x"
         assert self.topleft.y <= self.bottomright.y, "topleft.y must be <= bottomright.y"
 
-    def to_legacy_json(self):
+    def to_legacy_json(self) -> dict[str, list[float]]:
         return {
             "bbox": [
                 self.topleft.x,

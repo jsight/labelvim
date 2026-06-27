@@ -56,10 +56,10 @@ class UndoTree:
     undo_tree: UndoTreeNode
     current_node: UndoTreeNode
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.clear()
 
-    def clear(self):
+    def clear(self) -> None:
         initial_state: list[Shape] = []
         initial_node = UndoTreeNode(state=initial_state, command=None, parent=None)
         self.shapes = initial_state

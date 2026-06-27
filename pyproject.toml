@@ -59,3 +59,12 @@ warn_unused_ignores = true
 # Tighten these over time as annotations are added:
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
+
+# models/ is fully typed and mypy-clean; enforce strictness there so it doesn't
+# regress (it's the core Phase 2 builds on). utils/ is clean at the current level
+# but not yet fully annotated; widgets/ stay lenient until the Phase 2/3 rewrites
+# (most of their remaining errors are PyQt5 enum-scoping stub friction).
+[[tool.mypy.overrides]]
+module = ["labelvim.models.*"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
