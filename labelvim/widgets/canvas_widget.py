@@ -1,6 +1,5 @@
 import logging
 from enum import Enum
-from typing import cast
 
 from PyQt5 import QtCore
 from PyQt5.QtCore import *
@@ -10,7 +9,11 @@ from PyQt5.QtGui import QColor, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QLabel
 
-from labelvim.models.document import annotation_from_shape, shape_from_annotation
+from labelvim.models.document import (
+    AnnotationDocument,
+    annotation_from_shape,
+    shape_from_annotation,
+)
 from labelvim.models.model import Point, Polygon, Rectangle
 from labelvim.models.undo import UndoTree
 from labelvim.utils.config import ANNOTATION_MODE, ANNOTATION_TYPE, OBJECT_LIST_ACTION
@@ -868,9 +871,9 @@ class CanvasWidget(QLabel):
 
     def move_vertex(self, vertex_index, new_pos):
         if self.selected_object is not None:
-            # for rectangle in self.rectangles:
             for rectangle in self.undo_tree.shapes:
-                rectangle = cast(Rectangle, rectangle)
+                if not isinstance(rectangle, Rectangle):
+                    continue
                 if rectangle.id == self.selected_object:
                     if vertex_index == 0:
                         new_topleft_x = new_pos.x()
@@ -1125,6 +1128,15 @@ class CanvasWidget(QLabel):
         return [
             annotation_from_shape(index, shape) for index, shape in enumerate(self.undo_tree.shapes)
         ]
+
+    def to_document(self) -> AnnotationDocument:
+        """Build an AnnotationDocument from the current shapes (image meta is set
+        by the caller). Its ``to_dict`` is the single save serializer.
+        """
+        document = AnnotationDocument()
+        for shape in self.undo_tree.shapes:
+            document.shapes.append(shape)
+        return document
 
     def set_annotation_mode(self, mode):
         """Set the annotation mode."""

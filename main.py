@@ -7,6 +7,7 @@ from enum import Enum
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog
 
+from labelvim.models.document import ImageMeta
 from labelvim.utils.annotation_manager import AnnotationManager
 from labelvim.utils.config import (
     ANNOTATION_MODE,
@@ -394,14 +395,20 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Saves the current annotation data to a JSON file and updates the internal lists.
         """
-        # Get the annotation data from the display
-        annotation_data = self.canvas_widget.update_annotation_to_json()
-
         # Ensure the annotation manager is available
         if self.annotation_manager is not None:
             input_img_file = os.path.join(self.load_dir, self.img_file_list[self.current_index])
-            # Update and save the annotation
-            self.annotation_manager.update_annotation(annotation_data)
+            # Build the document from the canvas shapes + image metadata; its
+            # to_dict() is the single save serializer (stable, polygon-aware, and
+            # guaranteed to round-trip a load->save cycle).
+            document = self.canvas_widget.to_document()
+            document.meta = ImageMeta(
+                path=os.path.basename(input_img_file),
+                data=self.annotation_manager.annotation.get("imageData"),
+                height=self.canvas_widget.original_pixmap.height(),
+                width=self.canvas_widget.original_pixmap.width(),
+            )
+            self.annotation_manager.annotation = document.to_dict()
             self.annotation_manager.save_annotation()
             if self.__save_is_separate_from_load_dir():
                 # If they are separate dirs, move the input file there
