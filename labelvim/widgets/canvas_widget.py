@@ -10,6 +10,7 @@ from PyQt5.QtGui import QColor, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QLabel
 
+from labelvim.models.document import annotation_from_shape, shape_from_annotation
 from labelvim.models.model import Point, Polygon, Rectangle
 from labelvim.models.undo import UndoTree
 from labelvim.utils.config import ANNOTATION_MODE, ANNOTATION_TYPE, OBJECT_LIST_ACTION
@@ -594,68 +595,36 @@ class CanvasWidget(QLabel):
                     painter.drawPolygon(polgon)
                     for point in polygon_points:
                         painter.drawEllipse(point, 5, 5)
-                # for rectangle in self.rectangles:
                 for shape in self.undo_tree.shapes:
                     if not isinstance(shape, Polygon):
                         continue
-                    polygon = shape
-                    top_left_x = shape.rectangle.topleft.x * self.current_pixmap.width()
-                    top_left_y = shape.rectangle.topleft.y * self.current_pixmap.height()
-                    bottom_right_x = shape.rectangle.bottomright.x * self.current_pixmap.width()
-                    bottom_right_y = shape.rectangle.bottomright.y * self.current_pixmap.height()
-                    index = polygon.category_id
-                    rect = [
-                        top_left_x,
-                        top_left_y,
-                        bottom_right_x - top_left_x,
-                        bottom_right_y - top_left_y,
+                    index = shape.category_id
+                    # Map model points (image-pixel space) to screen, same as
+                    # rectangles: screen = offset + image_px * scale_factor.
+                    screen_points = [
+                        QPoint(
+                            offset_x + int(p.x * self.scale_factor),
+                            offset_y + int(p.y * self.scale_factor),
+                        )
+                        for p in shape.points
                     ]
-                    painter.drawPolygon(
-                        QPolygon(
-                            [
-                                QPoint(
-                                    offset_x
-                                    + int(
-                                        point.scaled_x(self.current_pixmap.width())
-                                        * self.scale_factor
-                                    ),
-                                    offset_y
-                                    + int(
-                                        point.scaled_y(self.current_pixmap.height())
-                                        * self.scale_factor
-                                    ),
-                                )
-                                for point in polygon.points
-                            ]
-                        )
-                    )
-                    for point in polygon.points:
-                        painter.drawEllipse(
-                            QPoint(
-                                offset_x
-                                + int(
-                                    point.scaled_x(self.current_pixmap.width()) * self.scale_factor
-                                ),
-                                offset_y
-                                + int(
-                                    point.scaled_y(self.current_pixmap.height()) * self.scale_factor
-                                ),
-                            ),
-                            5,
-                            5,
-                        )
+                    painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
+                    painter.setBrush(QBrush(self.polygon_brush_color))
+                    if self.selected_object is not None and self.selected_object == shape.id:
+                        painter.setBrush(QBrush(self.selected_polygon_brush_color))
+                    painter.drawPolygon(QPolygon(screen_points))
+                    for sp in screen_points:
+                        painter.drawEllipse(sp, 5, 5)
+                    # Label box at the polygon's bounding-box top-left.
+                    b = shape.bbox
+                    label_x = offset_x + int(b.x * self.scale_factor)
+                    label_y = offset_y + int(b.y * self.scale_factor)
                     text_label = self.label_list[index]
-                    rect = QRect(
-                        offset_x + int(rect[0] * self.scale_factor),
-                        offset_y + int(rect[1] * self.scale_factor),
-                        int(rect[2] * self.scale_factor),
-                        int(rect[3] * self.scale_factor),
-                    )
                     painter.setPen(QPen(self.title_pen_color, 2, Qt.SolidLine))
                     painter.setBrush(QBrush(QColor(255, 255, 255, 75)))
-                    painter.drawRect(rect.topLeft().x(), rect.topLeft().y() - 20, rect.width(), 20)
+                    painter.drawRect(label_x, label_y - 20, int(b.width * self.scale_factor), 20)
                     painter.setPen(QPen(QColor(0, 0, 0), 2, Qt.SolidLine))
-                    painter.drawText(rect.topLeft().x(), rect.topLeft().y() - 5, text_label)
+                    painter.drawText(label_x, label_y - 5, text_label)
         self.update()
 
     def update_rectangle(self, **kwargs):  # need to rename later
@@ -1136,41 +1105,11 @@ class CanvasWidget(QLabel):
             ... }]
         """
         self.undo_tree.clear()
-        for anno in annotation:
-            category_id = anno["category_id"]
-            bbox = anno["bbox"]
-            poly = anno["segmentation"]
-            polygons = []
-            for polygon in poly:
-                polygons.append(
-                    [QPoint(polygon[i], polygon[i + 1]) for i in range(0, len(polygon), 2)]
-                )
-
-            # polygon = QPolygon([QPoint(poly[i], poly[i+1]) for i in range(0, len(poly), 2)])
-            new_topleft = Point(bbox[0], bbox[1])
-            new_bottomright = Point((bbox[2] + bbox[0]), (bbox[3] + bbox[1]))
-            logger.debug("%s %s", "New top left:", new_topleft)
-            logger.debug("%s %s", "New bottom right:", new_bottomright)
-            new_rectangle = Rectangle(
-                id=len(self.undo_tree.shapes),
-                category_id=category_id,
-                topleft=new_topleft,
-                bottomright=new_bottomright,
-            )
-            self.undo_tree.add_shape(new_rectangle)
-            # self.rectangles.append(
-            #    {
-            #        "category_id": category_id,
-            #        "bbox": bbox,
-            #        "id": id,
-            #        "polygon": polygons.copy(),
-            #    }
-            # )
-        # if len(self.rectangles) > 0:
-        if len(self.undo_tree.shapes) > 0:
+        for index, anno in enumerate(annotation):
+            self.undo_tree.add_shape(shape_from_annotation(index, anno))
+        if self.undo_tree.shapes:
             self.object_list_action_slot.emit([self.undo_tree.shapes], OBJECT_LIST_ACTION.UPDATE)
-        # print(f"Rectangles: {len(self.rectangles)}")
-        logger.debug(f"Rectangles: {len(self.undo_tree.shapes)}")
+        logger.debug(f"Loaded shapes: {len(self.undo_tree.shapes)}")
         self.update()
 
     def update_annotation_to_json(self):
@@ -1180,47 +1119,12 @@ class CanvasWidget(QLabel):
         Returns:
             list: A list of annotations containing the label and rectangle data.
         """
-        annotations = []
-        logger.debug(f"to json rectangles: {len(self.rectangles)}")
-        # for rect in self.rectangles:
-        for rect in self.undo_tree.shapes:
-            if not isinstance(rect, Rectangle):
-                continue
-            rect = cast(Rectangle, rect)
-
-            category_id = rect.category_id
-            id = rect.id
-            legacy_rect = rect.to_legacy_json()
-            x, y, w, h = (
-                legacy_rect["bbox"][0],
-                legacy_rect["bbox"][1],
-                legacy_rect["bbox"][2],
-                legacy_rect["bbox"][3],
-            )
-            area = w * h
-            # for polygon in rect["polygon"]:
-            #    poly = []
-            #    for point in polygon:
-            #        poly.append(point.x())
-            #        poly.append(point.y())
-            #    polygons.append(poly)
-            # for point in rect['polygon']:
-            #     polygon.append(point.x())
-            #     polygon.append(point.y())
-            # segmentation = polygons
-            segmentation = []
-            iscrowd = 0
-            annotations.append(
-                {
-                    "id": id,
-                    "category_id": category_id,
-                    "bbox": [x, y, w, h],
-                    "area": area,
-                    "segmentation": segmentation,
-                    "iscrowd": iscrowd,
-                }
-            )
-        return annotations
+        # Serialize every shape (rectangles AND polygons) through the model
+        # serializer, which produces the stable COCO-like dict and re-derives ids
+        # as contiguous array indices.
+        return [
+            annotation_from_shape(index, shape) for index, shape in enumerate(self.undo_tree.shapes)
+        ]
 
     def set_annotation_mode(self, mode):
         """Set the annotation mode."""

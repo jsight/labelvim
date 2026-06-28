@@ -34,7 +34,7 @@ class Selection:
         self.vertex_index = None
 
 
-def _shape_from_annotation(index: int, anno: dict[str, Any]) -> Shape:
+def shape_from_annotation(index: int, anno: dict[str, Any]) -> Shape:
     category_id = anno.get("category_id")
     segmentation = anno.get("segmentation") or []
     if segmentation:
@@ -52,7 +52,7 @@ def _shape_from_annotation(index: int, anno: dict[str, Any]) -> Shape:
     )
 
 
-def _annotation_from_shape(index: int, shape: Shape) -> dict[str, Any]:
+def annotation_from_shape(index: int, shape: Shape) -> dict[str, Any]:
     b = shape.bbox
     segmentation: list[list[float]] = []
     if isinstance(shape, Polygon):
@@ -115,13 +115,13 @@ class AnnotationDocument:
         )
         for index, anno in enumerate(data.get("annotations", [])):
             # Load directly into the shape list without recording undo history.
-            doc.shapes.append(_shape_from_annotation(index, anno))
+            doc.shapes.append(shape_from_annotation(index, anno))
         return doc
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "annotations": [
-                _annotation_from_shape(index, shape) for index, shape in enumerate(self.shapes)
+                annotation_from_shape(index, shape) for index, shape in enumerate(self.shapes)
             ],
             "imagePath": self.meta.path,
             "imageData": self.meta.data,
