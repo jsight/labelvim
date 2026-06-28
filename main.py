@@ -16,6 +16,7 @@ from labelvim.utils.config import (
 from labelvim.utils.label_list_reader import label_list_reader
 from labelvim.utils.utils import get_image_list, return_mattching
 from labelvim.widgets.export_file import ExportFileDialog
+from labelvim.widgets.flash import FlashOverlay
 from labelvim.widgets.task_selection import TaskSelectionDialog
 from layout import Ui_MainWindow
 
@@ -37,6 +38,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
         self.installEventFilter(self)
+        self._flash_overlay = None
         self.img_file_list = []
         self.img_list = []
         self.json_file_list = []
@@ -553,10 +555,8 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ClearAnnotationBtn.setEnabled(True)
             self.actionSave.setEnabled(True)
         else:
-            # Display a message dialog if save directory is not selected
-            self.msg_dialog(
-                "Save Directory Not Selected", "Please select the save directory first."
-            )
+            # Non-blocking warning if save directory is not selected.
+            self.flash("Select a save directory first", level="warning")
             self.SaveBtn.setEnabled(False)
             self.DeleteAnnotationBtn.setEnabled(False)
             self.EditObjectBtn.setEnabled(False)
@@ -649,6 +649,15 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.actionFit_Windows.setEnabled(True)
         # self.actionSave.setEnabled(True)
 
+    def flash(self, message, level="info"):
+        """Show a non-blocking transient message (keeps the keyboard flow going).
+
+        Use for info/warnings; reserve msg_dialog for real confirmations.
+        """
+        if self._flash_overlay is None:
+            self._flash_overlay = FlashOverlay(self)
+        self._flash_overlay.flash(message, level)
+
     def msg_dialog(self, title, msg):
         msg_box = QtWidgets.QMessageBox()
         msg_box.setWindowTitle(title)
@@ -722,9 +731,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                 logger.debug("%s %s", "Export Type:", dialog.export_type)
                 logger.debug("%s %s", "Include Mask:", dialog.include_mask)
         else:
-            self.msg_dialog(
-                "Save Directory Not Selected", "Please select the save directory first."
-            )
+            self.flash("Select a save directory first", level="warning")
         # dialog = ExportFileDialog()
         # dialog.show()
         # if dialog.exec_():
