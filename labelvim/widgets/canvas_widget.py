@@ -248,8 +248,11 @@ class CanvasWidget(QLabel):
     def kb_create_box(self):
         if not self.original_pixmap:
             return
+        # Creation works from any mode: ensure a cursor exists (it normally only
+        # appears in edit mode) so `C` from NORMAL starts drawing at the center
+        # instead of silently doing nothing.
         if not self.cursor_pos:
-            return
+            self.cursor_pos = (0.50, 0.50)
         logger.debug("%s %s", "self.cursor_pos:", self.cursor_pos)
         self.set_annotation_mode(ANNOTATION_MODE.CREATE)
         # start_point = self.map_to_original_image(self.cursor_pos)

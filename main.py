@@ -140,8 +140,10 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             elif key_text == "J" or event.key() == QtCore.Qt.Key_Down:
                 self.canvas_widget.move_down(is_shift_pressed)
             elif key_text == "C":
-                self.__create_object()
-                self.canvas_widget.kb_create_box()
+                # Only start drawing if creation can actually proceed (otherwise
+                # __create_object flashes why); never a silent no-op.
+                if self.__create_object():
+                    self.canvas_widget.kb_create_box()
             elif event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Enter:
                 logger.debug("enter pressed")
                 self.canvas_widget.kb_move_complete()
@@ -532,43 +534,47 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             logger.debug("Invalid index. Cannot load annotation data.")
 
     def __create_object(self):
+        """Set up the environment for creating a new annotation.
+
+        Returns True if creation can proceed; otherwise flashes the reason and
+        returns False, so the `C` key never silently does nothing.
         """
-        Initializes the annotation manager and sets up the environment for creating
-        a new annotation object if a save directory is selected. Enables the save button.
-        """
-        if self.save_dir:
-            logger.debug("Create Object")
-
-            # Set annotation mode
-            self.annotation_mode = ANNOTATION_MODE.CREATE
-            logger.debug(f"Annotation Mode: {self.annotation_mode}")
-            self.canvas_widget.btn_action_slot.emit(self.annotation_mode)
-
-            # Initialize the annotation manager if not already initialized
-            if self.annotation_manager is None:
-                current_image = self.img_list[self.current_index]
-                self.annotation_manager = AnnotationManager(self.save_dir, current_image + ".json")
-                self.annotation_manager.update_basic_info(
-                    os.path.basename(self.img_file_list[self.current_index]),
-                    self.canvas_widget.original_pixmap.height(),
-                    self.canvas_widget.original_pixmap.width(),
-                )
-                self.annotation_data = self.annotation_manager.annotation
-
-            # Enable the save button
-            self.SaveBtn.setEnabled(True)
-            self.DeleteAnnotationBtn.setEnabled(True)
-            self.EditObjectBtn.setEnabled(True)
-            self.ClearAnnotationBtn.setEnabled(True)
-            self.actionSave.setEnabled(True)
-        else:
-            # Non-blocking warning if save directory is not selected.
+        if not self.save_dir:
             self.flash("Select a save directory first", level="warning")
             self.SaveBtn.setEnabled(False)
             self.DeleteAnnotationBtn.setEnabled(False)
             self.EditObjectBtn.setEnabled(False)
             self.ClearAnnotationBtn.setEnabled(False)
             self.actionSave.setEnabled(False)
+            return False
+
+        if self.canvas_widget.original_pixmap is None:
+            self.flash("Load an image first", level="warning")
+            return False
+
+        logger.debug("Create Object")
+        self.annotation_mode = ANNOTATION_MODE.CREATE
+        logger.debug(f"Annotation Mode: {self.annotation_mode}")
+        self.canvas_widget.btn_action_slot.emit(self.annotation_mode)
+
+        # Initialize the annotation manager if not already initialized
+        if self.annotation_manager is None:
+            current_image = self.img_list[self.current_index]
+            self.annotation_manager = AnnotationManager(self.save_dir, current_image + ".json")
+            self.annotation_manager.update_basic_info(
+                os.path.basename(self.img_file_list[self.current_index]),
+                self.canvas_widget.original_pixmap.height(),
+                self.canvas_widget.original_pixmap.width(),
+            )
+            self.annotation_data = self.annotation_manager.annotation
+
+        # Enable the annotation action buttons
+        self.SaveBtn.setEnabled(True)
+        self.DeleteAnnotationBtn.setEnabled(True)
+        self.EditObjectBtn.setEnabled(True)
+        self.ClearAnnotationBtn.setEnabled(True)
+        self.actionSave.setEnabled(True)
+        return True
 
     def __edit_object(self):
         logger.debug("Edit Object")
