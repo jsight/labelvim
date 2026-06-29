@@ -17,7 +17,7 @@ from labelvim.models.document import (
 from labelvim.models.model import Point, Polygon, Rectangle
 from labelvim.models.undo import UndoTree
 from labelvim.utils.config import ANNOTATION_MODE, ANNOTATION_TYPE, OBJECT_LIST_ACTION
-from labelvim.widgets.label_popup import LabelPopup
+from labelvim.widgets.label_picker import LabelPicker
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +86,8 @@ class CanvasWidget(QLabel):
         self.point_click_radious = 5  # The radious of the point click
         self.in_edit_mode = False
         self.cursor_pos = None
+        self._label_picker = None  # lazily-created keyboard-first label picker
+        self._pending_shape = None  # geometry awaiting a label: ("bbox"|"poly", geom)
 
     def set_edit_mode(self, edit_mode):
         self.in_edit_mode = edit_mode
@@ -634,82 +636,69 @@ class CanvasWidget(QLabel):
         self.update()
 
     def update_rectangle(self, **kwargs):  # need to rename later
+        """A shape's geometry is complete; ask for its label, then create it.
+
+        The label is chosen via the non-blocking keyboard-first LabelPicker; the
+        shape is created in the picker's callback so the keyboard flow never
+        stalls on a modal dialog.
+        """
         bbox = kwargs.get("bbox")
         poly = kwargs.get("poly")
-        if bbox:
-            label_selected, selected_id = self.select_label_from_label_list()
-            logger.debug(f"Selected Label: {label_selected}")
-            if label_selected:
-                try:
-                    index = self.label_list.index(label_selected)
-                    new_topleft = Point(bbox.x(), bbox.y())
-                    new_bottomright = Point((bbox.x() + bbox.width()), (bbox.y() + bbox.height()))
-                    new_rectangle = Rectangle(
-                        id=len(self.undo_tree.shapes),
-                        category_id=index,
-                        topleft=new_topleft,
-                        bottomright=new_bottomright,
-                    )
-                    self.undo_tree.add_shape(new_rectangle)
-                    # emit signal to add object to the object list
-                    self.object_list_action_slot.emit(
-                        [self.undo_tree.shapes[-1]], OBJECT_LIST_ACTION.ADD
-                    )
-                except ValueError:
-                    logger.debug("Label not found in the label list")
-        if poly:
-            label_selected, selected_id = self.select_label_from_label_list()
-            logger.debug(f"Selected Label: {label_selected} {selected_id}")
-            if label_selected:
-                try:
-                    if selected_id == -1:
-                        index = self.label_list.index(label_selected)
-                        polygon = QPolygon(poly)
-                        # print(f"Polygon: {poly}")
-                        # print(f"Polygon: {polygon}")
-                        bbox = polygon.boundingRect()
-                        new_topleft = Point(bbox.x(), bbox.y())
-                        new_bottomright = Point(
-                            (bbox.x() + bbox.width()), (bbox.y() + bbox.height())
-                        )
-                        new_rectangle = Rectangle(
-                            id=len(self.undo_tree.shapes),
-                            category_id=index,
-                            topleft=new_topleft,
-                            bottomright=new_bottomright,
-                        )
-                        new_points = [
-                            Point(
-                                p.x() / self.current_pixmap.width(),
-                                p.y() / self.current_pixmap.height(),
-                            )
-                            for p in poly
-                        ]
-                        new_polygon = Polygon(
-                            id=0, category_id=index, points=new_points, rectangle=new_rectangle
-                        )
-                        logger.debug("%s %s", "Adding new polygon: ", new_polygon)
-                        self.undo_tree.add_shape(new_polygon)
-                        self.object_list_action_slot.emit(
-                            [self.undo_tree.shapes[-1]], OBJECT_LIST_ACTION.ADD
-                        )
-                    else:
-                        rectanlge = self.rectangles[selected_id]
-                        bbox_c = rectanlge["bbox"]
-                        bbox = QRect(bbox_c[0], bbox_c[1], bbox_c[2], bbox_c[3])
-                        self.rectangles[selected_id]["polygon"].append(poly.copy())
-                        polygon = QPolygon(poly.copy())
-                        bbox_1 = polygon.boundingRect()
-                        bbox = bbox.united(bbox_1)
-                        self.rectangles[selected_id]["bbox"] = [
-                            bbox.x(),
-                            bbox.y(),
-                            bbox.width(),
-                            bbox.height(),
-                        ]
+        if bbox is not None:
+            self._pending_shape = ("bbox", bbox)
+            self._show_label_picker()
+        elif poly:
+            self._pending_shape = ("poly", poly)
+            self._show_label_picker()
 
-                except ValueError:
-                    logger.debug("Label not found in the label list")
+    def _show_label_picker(self):
+        if not self.label_list:
+            logger.debug("No labels available to pick from")
+            self._pending_shape = None
+            return
+        if self._label_picker is None:
+            self._label_picker = LabelPicker(self)
+        self._label_picker.pick(self.label_list, self._on_label_chosen, self._on_label_cancelled)
+
+    def _on_label_chosen(self, category_index):
+        pending = self._pending_shape
+        self._pending_shape = None
+        if pending is None:
+            return
+        kind, geom = pending
+        if kind == "bbox":
+            self._create_rectangle(geom, category_index)
+        elif kind == "poly":
+            self._create_polygon(geom, category_index)
+        self.update()
+
+    def _on_label_cancelled(self):
+        self._pending_shape = None
+        self.start_point = None
+        self.end_point = None
+        self.polygon_points = []
+        self.update()
+
+    def _create_rectangle(self, bbox, category_index):
+        new_rectangle = Rectangle(
+            id=len(self.undo_tree.shapes),
+            category_id=category_index,
+            topleft=Point(bbox.x(), bbox.y()),
+            bottomright=Point(bbox.x() + bbox.width(), bbox.y() + bbox.height()),
+        )
+        self.undo_tree.add_shape(new_rectangle)
+        self.object_list_action_slot.emit([self.undo_tree.shapes[-1]], OBJECT_LIST_ACTION.ADD)
+
+    def _create_polygon(self, poly, category_index):
+        # Points are in original-image pixel space (same as every other shape).
+        new_polygon = Polygon(
+            id=len(self.undo_tree.shapes),
+            category_id=category_index,
+            points=[Point(p.x(), p.y()) for p in poly],
+        )
+        self.undo_tree.add_shape(new_polygon)
+        self.object_list_action_slot.emit([self.undo_tree.shapes[-1]], OBJECT_LIST_ACTION.ADD)
+        self.polygon_points = []
 
     @staticmethod
     def distance(p1, p2):
@@ -1072,24 +1061,6 @@ class CanvasWidget(QLabel):
                         return polygons["id"], poly_idx, None, (i, (i + 1) % len(poly))
 
         return None, None, None, None
-
-    def select_label_from_label_list(self):
-        """Generate a label selection popup dialog."""
-        dialog = LabelPopup(
-            self.label_list,
-            # self.rectangles,
-            self.undo_tree.shapes,
-            self.annotation_type,
-            self.update_label_list_slot_transmitter,
-            self,
-        )
-        if dialog.exec_():
-            selected_label, _, selected_id = dialog.get_selected_item()
-            logger.debug(f"label list: {self.label_list}")
-            logger.debug(f"Selected Label: {selected_label}")
-            logger.debug(f"Selected ID: {selected_id}")
-            return selected_label, selected_id
-        return None, None
 
     def update_label_list(self, label_list):
         self.label_list = label_list
