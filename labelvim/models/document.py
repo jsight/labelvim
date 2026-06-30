@@ -24,13 +24,17 @@ class ImageMeta:
 
 @dataclass
 class Selection:
-    """Which shape/vertex is active. View state — never serialized or undone."""
+    """Which shape/vertex is active. View state — never serialized or undone.
 
-    shape_index: int | None = None
+    ``shape_id`` is the selected shape's stable id (not its list index);
+    ``vertex_index`` is the index of the active vertex within that shape.
+    """
+
+    shape_id: int | None = None
     vertex_index: int | None = None
 
     def clear(self) -> None:
-        self.shape_index = None
+        self.shape_id = None
         self.vertex_index = None
 
 

@@ -15,7 +15,6 @@ from labelvim.models.document import (
     shape_from_annotation,
 )
 from labelvim.models.model import Point, Polygon, Rectangle
-from labelvim.models.undo import UndoTree
 from labelvim.utils.config import ANNOTATION_MODE, ANNOTATION_TYPE, OBJECT_LIST_ACTION
 from labelvim.widgets.label_picker import LabelPicker
 
@@ -47,13 +46,14 @@ class CanvasWidget(QLabel):
         self.setScaledContents(False)
         self.setFocusPolicy(Qt.StrongFocus)
 
-        self.undo_tree = UndoTree()
+        # The single source of truth for this image's annotations: shapes (via
+        # the undo tree) and the current selection both live on the document.
+        self.document = AnnotationDocument()
 
         self.start_point = None
         self.end_point = None
-        self.polygon_points = []
+        self.polygon_points = []  # transient: in-progress polygon vertices
         self.polygon_move_point = None
-        self.rectangles = []  # List to store drawn rectangles
 
         self.original_pixmap = None
         self.current_pixmap = None
@@ -63,9 +63,7 @@ class CanvasWidget(QLabel):
         self.title_pen_color = QColor(0, 255, 255)
         self.selected_rectangle_brush_color = QColor(255, 0, 255, 50)
         self.selected_polygon_brush_color = QColor(255, 255, 0, 50)
-        self.selected_object = None  # List to store selected rectangles
         self.selected_object_subset = None
-        self.selected_vertex = None
         self.line_segment = None
         self.moving_object = False
         self.last_mouse_position = QPoint()  # Store the last mouse position
@@ -88,6 +86,31 @@ class CanvasWidget(QLabel):
         self.cursor_pos = None
         self._label_picker = None  # lazily-created keyboard-first label picker
         self._pending_shape = None  # geometry awaiting a label: ("bbox"|"poly", geom)
+
+    # --- views onto the document's state (the single source of truth) ---
+
+    @property
+    def undo_tree(self):
+        """The document's undo tree; `.shapes` is the authoritative shape list."""
+        return self.document.undo
+
+    @property
+    def selected_object(self):
+        """Id of the selected shape (None if nothing is selected)."""
+        return self.document.selection.shape_id
+
+    @selected_object.setter
+    def selected_object(self, value):
+        self.document.selection.shape_id = value
+
+    @property
+    def selected_vertex(self):
+        """Index of the active vertex within the selected shape."""
+        return self.document.selection.vertex_index
+
+    @selected_vertex.setter
+    def selected_vertex(self, value):
+        self.document.selection.vertex_index = value
 
     def set_edit_mode(self, edit_mode):
         self.in_edit_mode = edit_mode
@@ -941,7 +964,10 @@ class CanvasWidget(QLabel):
         selected_polygon = []
         selected_polygon_id = []
         selected_polygon_id_subset = []
-        for polygons in self.rectangles:
+        # TODO(gur-c5ee6b23.3 follow-up): mouse polygon selection still uses the
+        # old dict-based store, which no longer exists; reimplement against
+        # self.document.shapes. Until then this is a no-op.
+        for polygons in []:
             for poly_idx, polygon in enumerate(polygons["polygon"]):
                 poly = polygon.copy()
                 # polygon_points = [QPoint(point.x(), point.y()) for point in poly]
@@ -1041,7 +1067,9 @@ class CanvasWidget(QLabel):
     #             poly['bbox'] = [bbox.x(), bbox.y(), bbox.width(), bbox.height()]
 
     def find_polygon_to_edit(self, click_pos):
-        for polygons in reversed(self.rectangles):
+        # TODO(gur-c5ee6b23.3 follow-up): legacy dict-based polygon store removed;
+        # reimplement against self.document.shapes. No-op for now.
+        for polygons in []:
             polygon = polygons["polygon"]
             # polygon_obj = QPolygon(poly)
 
@@ -1104,13 +1132,10 @@ class CanvasWidget(QLabel):
         ]
 
     def to_document(self) -> AnnotationDocument:
-        """Build an AnnotationDocument from the current shapes (image meta is set
-        by the caller). Its ``to_dict`` is the single save serializer.
+        """The canvas's authoritative document (image meta is set by the caller
+        before serializing). Its ``to_dict`` is the single save serializer.
         """
-        document = AnnotationDocument()
-        for shape in self.undo_tree.shapes:
-            document.shapes.append(shape)
-        return document
+        return self.document
 
     def set_annotation_mode(self, mode):
         """Set the annotation mode."""
@@ -1133,7 +1158,11 @@ class CanvasWidget(QLabel):
                 # update the new object id
                 # for idx, rect in enumerate(self.rectangles):
                 #   rect["id"] = idx
-                self.object_list_action_slot.emit([self.rectangles], OBJECT_LIST_ACTION.REMOVE)
+                # Refresh the object list with the remaining shapes (UPDATE
+                # handles model Shapes; the old REMOVE path expected dicts).
+                self.object_list_action_slot.emit(
+                    [self.undo_tree.shapes], OBJECT_LIST_ACTION.UPDATE
+                )
                 logger.debug("Setting selected object to None")
                 self.selected_object = None
             self.annotation_mode = ANNOTATION_MODE.CREATE
