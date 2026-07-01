@@ -121,6 +121,7 @@ class CanvasWidget(QLabel):
             self.cursor_pos = None
             self.start_point = None
             self.end_point = None
+        self.update()
 
     def enforce_cursor_min_max(self):
         if self.cursor_pos[0] < 0:
@@ -536,127 +537,120 @@ class CanvasWidget(QLabel):
 
     def paintEvent(self, event):
         super().paintEvent(event)
-        if self.current_pixmap:
-            painter = QPainter(self)
-            offset_x = (self.width() - self.current_pixmap.width()) // 2
-            offset_y = (self.height() - self.current_pixmap.height()) // 2
-            painter.drawPixmap(offset_x, offset_y, self.current_pixmap)
-            # print(f"offset_x: {offset_x}, offset_y: {offset_y}")
-            painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
+        if not self.current_pixmap:
+            return
+        painter = QPainter(self)
+        offset_x = (self.width() - self.current_pixmap.width()) // 2
+        offset_y = (self.height() - self.current_pixmap.height()) // 2
+        painter.drawPixmap(offset_x, offset_y, self.current_pixmap)
+
+        def to_screen(x, y):
+            """Map model coordinates (original-image pixels) to screen pixels."""
+            return QPoint(
+                offset_x + int(x * self.scale_factor),
+                offset_y + int(y * self.scale_factor),
+            )
+
+        # Committed shapes are rendered purely from the document, regardless of
+        # the active annotation type.
+        for shape in self.undo_tree.shapes:
+            selected = self.selected_object is not None and self.selected_object == shape.id
+            if isinstance(shape, Rectangle):
+                self._paint_rectangle(painter, shape, to_screen, selected)
+            elif isinstance(shape, Polygon):
+                self._paint_polygon(painter, shape, to_screen, selected)
+
+        # In-progress creation overlay depends on the active annotation type.
+        if self.annotation_type == ANNOTATION_TYPE.BBOX and self.start_point and self.end_point:
+            rect = QRect(
+                to_screen(self.start_point.x(), self.start_point.y()),
+                to_screen(self.end_point.x(), self.end_point.y()),
+            ).normalized()
+            painter.setPen(QPen(self.pen_color, 2, Qt.PenStyle.SolidLine))
             painter.setBrush(QBrush(self.brush_color))
-            # print(f"Annotation Type: {self.annotation_type}")
-            # print("self.rectangles: ", self.rectangles)
-            if self.cursor_pos is not None:
-                cursor_x = offset_x + int(self.cursor_pos[0] * self.current_pixmap.width())
-                cursor_y = offset_y + int(self.cursor_pos[1] * self.current_pixmap.height())
-                cursor_point = QPoint(cursor_x, cursor_y)
-                # print("Painting cursor_pos:", cursor_point, self.scale_factor)
-                painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
-                painter.setBrush(QBrush(self.brush_color))
-                painter.drawEllipse(cursor_point, 50, 50)
-            if self.annotation_type == ANNOTATION_TYPE.BBOX:
-                # print(f"self.rectangles: {self.rectangles}")
-                if self.start_point and self.end_point:
-                    # painter.setPen(QPen(QColor(0, 0, 255), 2, Qt.SolidLine))
-                    start_point = QPoint(
-                        offset_x + int(self.start_point.x() * self.scale_factor),
-                        offset_y + int(self.start_point.y() * self.scale_factor),
-                    )
-                    end_point = QPoint(
-                        offset_x + int(self.end_point.x() * self.scale_factor),
-                        offset_y + int(self.end_point.y() * self.scale_factor),
-                    )
-                    rect = QRect(start_point, end_point).normalized()
-                    painter.drawEllipse(rect.topLeft(), 5, 5)
-                    painter.drawEllipse(rect.topRight(), 5, 5)
-                    painter.drawEllipse(rect.bottomLeft(), 5, 5)
-                    painter.drawEllipse(rect.bottomRight(), 5, 5)
-                    painter.drawRect(rect)
-                # for rectangle in self.rectangles:
-                for rectangle in self.undo_tree.shapes:
-                    if not isinstance(rectangle, Rectangle):
-                        continue
-                    top_left_x = rectangle.topleft.x
-                    top_left_y = rectangle.topleft.y
-                    bottom_right_x = rectangle.bottomright.x
-                    bottom_right_y = rectangle.bottomright.y
-                    index = rectangle.category_id
-                    rect = [
-                        top_left_x,
-                        top_left_y,
-                        bottom_right_x - top_left_x,
-                        bottom_right_y - top_left_y,
-                    ]
-                    # rect, index = rectangle["bbox"], rectangle["category_id"]
-                    painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
-                    painter.setBrush(QBrush(self.brush_color))
-                    # print("self.selected_object:", self.selected_object)
-                    if self.selected_object is not None and self.selected_object == rectangle.id:
-                        painter.setBrush(QBrush(self.selected_rectangle_brush_color))
-                    rect = QRect(
-                        offset_x + int(rect[0] * self.scale_factor),
-                        offset_y + int(rect[1] * self.scale_factor),
-                        int(rect[2] * self.scale_factor),
-                        int(rect[3] * self.scale_factor),
-                    )
-                    text_label = self.label_list[index]
-                    painter.drawEllipse(rect.topLeft(), 5, 5)
-                    painter.drawEllipse(rect.topRight(), 5, 5)
-                    painter.drawEllipse(rect.bottomLeft(), 5, 5)
-                    painter.drawEllipse(rect.bottomRight(), 5, 5)
-                    painter.drawRect(rect)
-                    painter.setPen(QPen(self.title_pen_color, 2, Qt.SolidLine))
-                    painter.setBrush(QBrush(QColor(255, 255, 255, 75)))
-                    painter.drawRect(rect.topLeft().x(), rect.topLeft().y() - 20, rect.width(), 20)
-                    painter.setPen(QPen(QColor(0, 0, 0), 2, Qt.SolidLine))
-                    painter.drawText(rect.topLeft().x(), rect.topLeft().y() - 5, text_label)
-            elif self.annotation_type == ANNOTATION_TYPE.POLYGON:
-                # print(f"self.rectangles: {self.rectangles}")
-                if self.polygon_points:
-                    polygon_points = [
-                        QPoint(
-                            offset_x + int(point.x() * self.scale_factor),
-                            offset_y + int(point.y() * self.scale_factor),
-                        )
-                        for point in self.polygon_points
-                    ]
-                    polgon = QPolygon(polygon_points)
-                    painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
-                    painter.setBrush(QBrush(self.polygon_brush_color))
-                    painter.drawPolygon(polgon)
-                    for point in polygon_points:
-                        painter.drawEllipse(point, 5, 5)
-                for shape in self.undo_tree.shapes:
-                    if not isinstance(shape, Polygon):
-                        continue
-                    index = shape.category_id
-                    # Map model points (image-pixel space) to screen, same as
-                    # rectangles: screen = offset + image_px * scale_factor.
-                    screen_points = [
-                        QPoint(
-                            offset_x + int(p.x * self.scale_factor),
-                            offset_y + int(p.y * self.scale_factor),
-                        )
-                        for p in shape.points
-                    ]
-                    painter.setPen(QPen(self.pen_color, 2, Qt.SolidLine))
-                    painter.setBrush(QBrush(self.polygon_brush_color))
-                    if self.selected_object is not None and self.selected_object == shape.id:
-                        painter.setBrush(QBrush(self.selected_polygon_brush_color))
-                    painter.drawPolygon(QPolygon(screen_points))
-                    for sp in screen_points:
-                        painter.drawEllipse(sp, 5, 5)
-                    # Label box at the polygon's bounding-box top-left.
-                    b = shape.bbox
-                    label_x = offset_x + int(b.x * self.scale_factor)
-                    label_y = offset_y + int(b.y * self.scale_factor)
-                    text_label = self.label_list[index]
-                    painter.setPen(QPen(self.title_pen_color, 2, Qt.SolidLine))
-                    painter.setBrush(QBrush(QColor(255, 255, 255, 75)))
-                    painter.drawRect(label_x, label_y - 20, int(b.width * self.scale_factor), 20)
-                    painter.setPen(QPen(QColor(0, 0, 0), 2, Qt.SolidLine))
-                    painter.drawText(label_x, label_y - 5, text_label)
-        self.update()
+            painter.drawRect(rect)
+            self._paint_vertices(
+                painter,
+                [rect.topLeft(), rect.topRight(), rect.bottomRight(), rect.bottomLeft()],
+            )
+        elif self.annotation_type == ANNOTATION_TYPE.POLYGON and self.polygon_points:
+            points = [to_screen(p.x(), p.y()) for p in self.polygon_points]
+            painter.setPen(QPen(self.pen_color, 2, Qt.PenStyle.SolidLine))
+            painter.setBrush(QBrush(self.polygon_brush_color))
+            painter.drawPolygon(QPolygon(points))
+            self._paint_vertices(painter, points)
+
+        if self.cursor_pos is not None:
+            self._paint_cursor(painter, offset_x, offset_y)
+
+    # --- paint helpers (all map model -> screen via the passed to_screen) ---
+
+    def _label_text(self, index):
+        if index is not None and 0 <= index < len(self.label_list):
+            return self.label_list[index]
+        return str(index)
+
+    def _paint_label(self, painter, top_left, width, text):
+        painter.setPen(QPen(self.title_pen_color, 2, Qt.PenStyle.SolidLine))
+        painter.setBrush(QBrush(QColor(255, 255, 255, 75)))
+        painter.drawRect(top_left.x(), top_left.y() - 20, width, 20)
+        painter.setPen(QPen(QColor(0, 0, 0), 2, Qt.PenStyle.SolidLine))
+        painter.drawText(top_left.x(), top_left.y() - 5, text)
+
+    def _paint_vertices(self, painter, points, highlight_index=None):
+        saved_brush = painter.brush()
+        for i, point in enumerate(points):
+            if i == highlight_index:
+                painter.setBrush(QBrush(QColor(255, 255, 0)))
+                painter.drawEllipse(point, 7, 7)
+                painter.setBrush(saved_brush)
+            else:
+                painter.drawEllipse(point, 5, 5)
+
+    def _paint_rectangle(self, painter, shape, to_screen, selected):
+        rect = QRect(
+            to_screen(shape.topleft.x, shape.topleft.y),
+            to_screen(shape.bottomright.x, shape.bottomright.y),
+        ).normalized()
+        painter.setPen(QPen(self.pen_color, 3 if selected else 2, Qt.PenStyle.SolidLine))
+        painter.setBrush(
+            QBrush(self.selected_rectangle_brush_color if selected else self.brush_color)
+        )
+        painter.drawRect(rect)
+        self._paint_vertices(
+            painter,
+            [rect.topLeft(), rect.topRight(), rect.bottomRight(), rect.bottomLeft()],
+            self.selected_vertex if selected else None,
+        )
+        self._paint_label(
+            painter, rect.topLeft(), rect.width(), self._label_text(shape.category_id)
+        )
+
+    def _paint_polygon(self, painter, shape, to_screen, selected):
+        points = [to_screen(p.x, p.y) for p in shape.points]
+        painter.setPen(QPen(self.pen_color, 3 if selected else 2, Qt.PenStyle.SolidLine))
+        painter.setBrush(
+            QBrush(self.selected_polygon_brush_color if selected else self.polygon_brush_color)
+        )
+        painter.drawPolygon(QPolygon(points))
+        self._paint_vertices(painter, points, self.selected_vertex if selected else None)
+        b = shape.bbox
+        self._paint_label(
+            painter,
+            to_screen(b.x, b.y),
+            int(b.width * self.scale_factor),
+            self._label_text(shape.category_id),
+        )
+
+    def _paint_cursor(self, painter, offset_x, offset_y):
+        cx = offset_x + int(self.cursor_pos[0] * self.current_pixmap.width())
+        cy = offset_y + int(self.cursor_pos[1] * self.current_pixmap.height())
+        painter.setPen(QPen(self.pen_color, 1, Qt.PenStyle.SolidLine))
+        painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+        arm = 9
+        painter.drawLine(cx - arm, cy, cx + arm, cy)
+        painter.drawLine(cx, cy - arm, cx, cy + arm)
+        painter.drawEllipse(QPoint(cx, cy), 2, 2)
 
     def update_rectangle(self, **kwargs):  # need to rename later
         """A shape's geometry is complete; ask for its label, then create it.
@@ -1181,3 +1175,4 @@ class CanvasWidget(QLabel):
         else:
             logger.debug("%s %s", "Setting selected object to ", object_id)
             self.selected_object = object_id
+        self.update()
