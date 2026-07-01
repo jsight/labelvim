@@ -62,6 +62,10 @@ class Shape(ABC):
     def bbox(self) -> BBox:
         """Axis-aligned bounding box of the shape."""
 
+    @abstractmethod
+    def nudge_vertex(self, index: int, dx: float, dy: float) -> None:
+        """Move the vertex at ``index`` in place by (dx, dy)."""
+
     def vertex_index_near(self, point: Point, radius: float) -> int | None:
         """Index of the closest vertex within ``radius``, or None.
 
@@ -98,6 +102,31 @@ class Rectangle(Shape):
         self.topleft.translate(dx, dy)
         self.bottomright.translate(dx, dy)
 
+    def nudge_vertex(self, index: int, dx: float, dy: float) -> None:
+        # Corners follow vertices(): 0=top-left, 1=top-right, 2=bottom-right,
+        # 3=bottom-left. Each corner drags one x-edge and one y-edge.
+        if index == 0:
+            self.topleft.translate(dx, dy)
+        elif index == 1:
+            self.bottomright.x += dx
+            self.topleft.y += dy
+        elif index == 2:
+            self.bottomright.translate(dx, dy)
+        elif index == 3:
+            self.topleft.x += dx
+            self.bottomright.y += dy
+
+    def normalized(self) -> "Rectangle":
+        """A copy with corners sorted so topleft <= bottomright."""
+        x0, x1 = sorted((self.topleft.x, self.bottomright.x))
+        y0, y1 = sorted((self.topleft.y, self.bottomright.y))
+        return Rectangle(
+            id=self.id,
+            category_id=self.category_id,
+            topleft=Point(x0, y0),
+            bottomright=Point(x1, y1),
+        )
+
     def contains(self, point: Point) -> bool:
         return (
             self.topleft.x <= point.x <= self.bottomright.x
@@ -132,6 +161,9 @@ class Polygon(Shape):
     def move(self, dx: float, dy: float) -> None:
         for p in self.points:
             p.translate(dx, dy)
+
+    def nudge_vertex(self, index: int, dx: float, dy: float) -> None:
+        self.points[index].translate(dx, dy)
 
     def contains(self, point: Point) -> bool:
         """Ray-casting point-in-polygon test (even-odd rule)."""

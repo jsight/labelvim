@@ -47,12 +47,19 @@ LABELVIM_LOG_LEVEL=DEBUG uv run python main.py
 | Key | Action |
 |-----|--------|
 | `I` | enter **EDIT** mode (status shows EDIT) |
-| `Esc` | back to **NORMAL** mode |
-| `H` `J` `K` `L` / arrows | move the cursor left/down/up/right |
-| `Shift` + move | larger step |
+| `Esc` | cancel an in-progress vertex edit, else back to **NORMAL** |
+| `H` `J` `K` `L` / arrows | move the cursor (or, when editing a vertex, nudge it) |
+| `Shift` + move | larger step / coarse nudge |
 | `C` | create/start a box at the cursor |
-| `Enter` | complete the current move/placement |
+| `n` / `N` | (EDIT) select next / previous shape |
+| `v` | (EDIT) start editing the selected shape's vertices; press again to cycle vertices |
+| `Enter` | commit the vertex edit, else complete the current box |
+| `u` | undo · `Ctrl`+`R` | redo |
 | Buttons | Open Dir, Save Dir, Save, Edit Object, Delete Annotation, Clear Annotation, zoom in/out/fit, next/previous, Export |
+
+**Keyboard vertex editing:** `I` → `n`/`N` to pick a shape → `v` to grab its first
+vertex (highlighted yellow), `v` again to cycle vertices → `hjkl` to nudge →
+`Enter` to commit (one undo step) or `Esc` to cancel. `u` undoes the whole edit.
 
 ## Tests
 

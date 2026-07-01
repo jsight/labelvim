@@ -128,9 +128,12 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.modeLabel.setText("EDIT")
                 self.canvas_widget.set_edit_mode(True)
             elif event.key() == QtCore.Qt.Key_Escape and self.modal_state.state == Mode.EDIT:
-                self.modal_state.state = Mode.NORMAL
-                self.modeLabel.setText("NORMAL")
-                self.canvas_widget.set_edit_mode(False)
+                # Esc first cancels an in-progress vertex edit; only if none is
+                # active does it leave EDIT mode.
+                if not self.canvas_widget.cancel_vertex_edit():
+                    self.modal_state.state = Mode.NORMAL
+                    self.modeLabel.setText("NORMAL")
+                    self.canvas_widget.set_edit_mode(False)
             if key_text == "K" or event.key() == QtCore.Qt.Key_Up:
                 self.canvas_widget.move_up(is_shift_pressed)
             elif key_text == "H" or event.key() == QtCore.Qt.Key_Left:
@@ -139,6 +142,15 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.canvas_widget.move_right(is_shift_pressed)
             elif key_text == "J" or event.key() == QtCore.Qt.Key_Down:
                 self.canvas_widget.move_down(is_shift_pressed)
+            elif key_text == "N" and self.modal_state.state == Mode.EDIT:
+                # n / N: cycle the selected shape forward / backward.
+                if is_shift_pressed:
+                    self.canvas_widget.select_prev_shape()
+                else:
+                    self.canvas_widget.select_next_shape()
+            elif key_text == "V" and self.modal_state.state == Mode.EDIT:
+                # v: start editing the selected shape's vertices, or cycle vertex.
+                self.canvas_widget.enter_or_cycle_vertex()
             elif key_text == "C":
                 # Only start drawing if creation can actually proceed (otherwise
                 # __create_object flashes why); never a silent no-op.
@@ -146,7 +158,10 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                     self.canvas_widget.kb_create_box()
             elif event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Enter:
                 logger.debug("enter pressed")
-                self.canvas_widget.kb_move_complete()
+                # Enter commits a vertex edit if one is active; otherwise it
+                # completes an in-progress box.
+                if not self.canvas_widget.commit_vertex_edit():
+                    self.canvas_widget.kb_move_complete()
             elif key_text == "U" and not (event.modifiers() & QtCore.Qt.ControlModifier):
                 # vim-style: u = undo, Ctrl+R = redo
                 self.canvas_widget.undo()

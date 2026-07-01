@@ -136,3 +136,35 @@ def test_polygon_vertex_index_near():
     poly = square_polygon()
     assert poly.vertex_index_near(Point(10.2, 9.8), radius=0.5) == 2
     assert poly.vertex_index_near(Point(5, 5), radius=0.5) is None
+
+
+def test_polygon_nudge_vertex():
+    poly = square_polygon()  # [(0,0),(10,0),(10,10),(0,10)]
+    poly.nudge_vertex(2, 3, -4)
+    assert (poly.points[2].x, poly.points[2].y) == (13, 6)
+    # others unchanged
+    assert (poly.points[0].x, poly.points[0].y) == (0, 0)
+
+
+def test_rectangle_nudge_each_corner():
+    # corners: 0=TL, 1=TR, 2=BR, 3=BL
+    r = rect(0, 0, 10, 10)
+    r.nudge_vertex(0, 2, 3)  # top-left
+    assert (r.topleft.x, r.topleft.y) == (2, 3)
+    r = rect(0, 0, 10, 10)
+    r.nudge_vertex(1, 2, 3)  # top-right: right edge x, top edge y
+    assert (r.bottomright.x, r.topleft.y) == (12, 3)
+    r = rect(0, 0, 10, 10)
+    r.nudge_vertex(2, 2, 3)  # bottom-right
+    assert (r.bottomright.x, r.bottomright.y) == (12, 13)
+    r = rect(0, 0, 10, 10)
+    r.nudge_vertex(3, 2, 3)  # bottom-left: left edge x, bottom edge y
+    assert (r.topleft.x, r.bottomright.y) == (2, 13)
+
+
+def test_rectangle_normalized_after_inverting_drag():
+    r = rect(0, 0, 10, 10)
+    r.nudge_vertex(0, 20, 20)  # drag TL past BR -> inverted
+    n = r.normalized()
+    assert (n.topleft.x, n.topleft.y) == (10, 10)
+    assert (n.bottomright.x, n.bottomright.y) == (20, 20)

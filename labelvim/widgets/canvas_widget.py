@@ -1,3 +1,4 @@
+import copy
 import logging
 from enum import Enum
 
@@ -86,6 +87,8 @@ class CanvasWidget(QLabel):
         self.cursor_pos = None
         self._label_picker = None  # lazily-created keyboard-first label picker
         self._pending_shape = None  # geometry awaiting a label: ("bbox"|"poly", geom)
+        self._editing_index = None  # index of the shape being vertex-edited
+        self._editing_shape = None  # working copy edited live; committed on Enter
 
     # --- views onto the document's state (the single source of truth) ---
 
@@ -133,7 +136,13 @@ class CanvasWidget(QLabel):
         if self.cursor_pos[1] > 1:
             self.cursor_pos = (self.cursor_pos[0], 1)
 
+    def _vertex_nudge_step(self, larger_movement):
+        return 5 if larger_movement else 1
+
     def move_up(self, larger_movement):
+        if self.is_editing_vertex():
+            self._nudge_editing_vertex(0, -self._vertex_nudge_step(larger_movement))
+            return
         if not self.cursor_pos:
             return
         step_size = 0.05 if larger_movement else 0.01
@@ -142,6 +151,9 @@ class CanvasWidget(QLabel):
         self.kb_create_mode_move()
 
     def move_right(self, larger_movement):
+        if self.is_editing_vertex():
+            self._nudge_editing_vertex(self._vertex_nudge_step(larger_movement), 0)
+            return
         if not self.cursor_pos:
             return
         step_size = 0.05 if larger_movement else 0.01
@@ -150,6 +162,9 @@ class CanvasWidget(QLabel):
         self.kb_create_mode_move()
 
     def move_down(self, larger_movement):
+        if self.is_editing_vertex():
+            self._nudge_editing_vertex(0, self._vertex_nudge_step(larger_movement))
+            return
         if not self.cursor_pos:
             return
         step_size = 0.05 if larger_movement else 0.01
@@ -158,6 +173,9 @@ class CanvasWidget(QLabel):
         self.kb_create_mode_move()
 
     def move_left(self, larger_movement):
+        if self.is_editing_vertex():
+            self._nudge_editing_vertex(-self._vertex_nudge_step(larger_movement), 0)
+            return
         if not self.cursor_pos:
             return
         step_size = 0.05 if larger_movement else 0.01
@@ -552,8 +570,11 @@ class CanvasWidget(QLabel):
             )
 
         # Committed shapes are rendered purely from the document, regardless of
-        # the active annotation type.
-        for shape in self.undo_tree.shapes:
+        # the active annotation type. A shape under live vertex-editing is drawn
+        # from its working copy for immediate feedback.
+        for index, shape in enumerate(self.undo_tree.shapes):
+            if index == self._editing_index and self._editing_shape is not None:
+                shape = self._editing_shape
             selected = self.selected_object is not None and self.selected_object == shape.id
             if isinstance(shape, Rectangle):
                 self._paint_rectangle(painter, shape, to_screen, selected)
@@ -1166,5 +1187,80 @@ class CanvasWidget(QLabel):
         # refresh the object list from the (now-authoritative) document.
         self.selected_object = None
         self.selected_vertex = None
+        self._editing_index = None
+        self._editing_shape = None
         self.object_list_action_slot.emit([self.undo_tree.shapes], OBJECT_LIST_ACTION.UPDATE)
         self.update()
+
+    # --- keyboard vertex editing ---
+
+    def is_editing_vertex(self):
+        return self._editing_index is not None
+
+    def select_next_shape(self):
+        self._cycle_selection(1)
+
+    def select_prev_shape(self):
+        self._cycle_selection(-1)
+
+    def _cycle_selection(self, step):
+        # Cancel any in-progress vertex edit when changing the selected shape.
+        self.cancel_vertex_edit()
+        shapes = self.undo_tree.shapes
+        if not shapes:
+            return
+        ids = [s.id for s in shapes]
+        if self.selected_object in ids:
+            i = (ids.index(self.selected_object) + step) % len(ids)
+        else:
+            i = 0 if step > 0 else len(ids) - 1
+        self.selected_object = ids[i]
+        self.selected_vertex = None
+        self.update()
+
+    def enter_or_cycle_vertex(self):
+        """Tab: start editing the selected shape's vertices, or cycle to the next."""
+        if self._editing_index is None:
+            if self.selected_object is None:
+                return
+            index = self.undo_tree.find_shape_index_by_id_or_none(self.selected_object)
+            if index is None:
+                return
+            self._editing_index = index
+            self._editing_shape = copy.deepcopy(self.undo_tree.shapes[index])
+            self.selected_vertex = 0
+        else:
+            count = len(self._editing_shape.vertices())
+            self.selected_vertex = ((self.selected_vertex or 0) + 1) % count
+        self.update()
+
+    def _nudge_editing_vertex(self, dx, dy):
+        if self._editing_shape is None:
+            return
+        self._editing_shape.nudge_vertex(self.selected_vertex or 0, dx, dy)
+        self.update()
+
+    def commit_vertex_edit(self):
+        """Commit the live vertex edit as a single undoable step. Returns True
+        if an edit was in progress."""
+        if self._editing_index is None or self._editing_shape is None:
+            return False
+        shape = self._editing_shape
+        if isinstance(shape, Rectangle):
+            shape = shape.normalized()
+        self.document.replace_shape(self._editing_index, shape)
+        self._editing_index = None
+        self._editing_shape = None
+        self.selected_vertex = None
+        self.update()
+        return True
+
+    def cancel_vertex_edit(self):
+        """Discard the live vertex edit. Returns True if one was in progress."""
+        if self._editing_index is None:
+            return False
+        self._editing_index = None
+        self._editing_shape = None
+        self.selected_vertex = None
+        self.update()
+        return True
