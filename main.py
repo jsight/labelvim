@@ -147,6 +147,11 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             elif event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Enter:
                 logger.debug("enter pressed")
                 self.canvas_widget.kb_move_complete()
+            elif key_text == "U" and not (event.modifiers() & QtCore.Qt.ControlModifier):
+                # vim-style: u = undo, Ctrl+R = redo
+                self.canvas_widget.undo()
+            elif key_text == "R" and (event.modifiers() & QtCore.Qt.ControlModifier):
+                self.canvas_widget.redo()
 
             # return True
         return False

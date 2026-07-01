@@ -879,80 +879,54 @@ class CanvasWidget(QLabel):
         return None
 
     def move_vertex(self, vertex_index, new_pos):
-        if self.selected_object is not None:
-            for rectangle in self.undo_tree.shapes:
-                if not isinstance(rectangle, Rectangle):
-                    continue
-                if rectangle.id == self.selected_object:
-                    if vertex_index == 0:
-                        new_topleft_x = new_pos.x()
-                        new_topleft_y = new_pos.y()
-                        new_bottomright_x = rectangle.bottomright.x
-                        new_bottomright_y = rectangle.bottomright.y
-                        new_rect = Rectangle(
-                            id=rectangle.id,
-                            category_id=rectangle.category_id,
-                            topleft=Point(x=new_topleft_x, y=new_topleft_y),
-                            bottomright=Point(x=new_bottomright_x, y=new_bottomright_y),
-                        )
-                    elif vertex_index == 1:
-                        # delta_w = new_pos.x() - (rect[0] + rect[2])
-                        # delta_h = rect[1] - new_pos.y()
-                        # rect[1] = new_pos.y()
-                        # rect[2] = rect[2] + delta_w
-                        # rect[3] = rect[3] + delta_h
-                        new_topleft_x = rectangle.topleft.x
-                        new_topleft_y = new_pos.y()
-                        new_bottomright_x = new_pos.x()
-                        new_bottomright_y = rectangle.bottomright.y
-                        new_rect = Rectangle(
-                            id=rectangle.id,
-                            category_id=rectangle.category_id,
-                            topleft=Point(x=new_topleft_x, y=new_topleft_y),
-                            bottomright=Point(x=new_bottomright_x, y=new_bottomright_y),
-                        )
-                    elif vertex_index == 2:
-                        new_topleft_x = new_pos.x()
-                        new_topleft_y = rectangle.topleft.y
-                        new_bottomright_x = rectangle.bottomright.x
-                        new_bottomright_y = new_pos.y()
-                        new_rect = Rectangle(
-                            id=rectangle.id,
-                            category_id=rectangle.category_id,
-                            topleft=Point(x=new_topleft_x, y=new_topleft_y),
-                            bottomright=Point(x=new_bottomright_x, y=new_bottomright_y),
-                        )
-                    elif vertex_index == 3:
-                        new_topleft_x = rectangle.topleft.x
-                        new_topleft_y = rectangle.topleft.y
-                        new_bottomright_x = new_pos.x()
-                        new_bottomright_y = new_pos.y()
-                        new_rect = Rectangle(
-                            id=rectangle.id,
-                            category_id=rectangle.category_id,
-                            topleft=Point(x=new_topleft_x, y=new_topleft_y),
-                            bottomright=Point(x=new_bottomright_x, y=new_bottomright_y),
-                        )
-                    self.undo_tree.remove_shape_by_id(rectangle.id)
-                    self.undo_tree.add_shape(new_rect)
-                    break
+        """Reshape the selected rectangle by dragging one corner.
+
+        Corners: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right. The
+        result is normalized so topleft <= bottomright, and applied as a single
+        undoable ReplaceShapeCommand (in place, no reordering).
+        """
+        if self.selected_object is None:
+            return
+        index = self.undo_tree.find_shape_index_by_id_or_none(self.selected_object)
+        if index is None:
+            return
+        rectangle = self.undo_tree.shapes[index]
+        if not isinstance(rectangle, Rectangle):
+            return
+        tlx, tly = rectangle.topleft.x, rectangle.topleft.y
+        brx, bry = rectangle.bottomright.x, rectangle.bottomright.y
+        if vertex_index == 0:
+            tlx, tly = new_pos.x(), new_pos.y()
+        elif vertex_index == 1:
+            brx, tly = new_pos.x(), new_pos.y()
+        elif vertex_index == 2:
+            tlx, bry = new_pos.x(), new_pos.y()
+        elif vertex_index == 3:
+            brx, bry = new_pos.x(), new_pos.y()
+        else:
+            return
+        x0, x1 = sorted((tlx, brx))
+        y0, y1 = sorted((tly, bry))
+        new_rect = Rectangle(
+            id=rectangle.id,
+            category_id=rectangle.category_id,
+            topleft=Point(x0, y0),
+            bottomright=Point(x1, y1),
+        )
+        self.document.replace_shape(index, new_rect)
+        self.update()
 
     def move_rectangle(self, new_pos):
-        if self.selected_object is not None:
-            rect = self.get_selected_object()
-            if rect is not None:
-                dx = new_pos.x() - self.last_mouse_position.x()
-                dy = new_pos.y() - self.last_mouse_position.y()
-                new_rect = Rectangle(
-                    id=rect.id,
-                    category_id=rect.category_id,
-                    topleft=Point(x=rect.topleft.x + dx, y=rect.topleft.y + dy),
-                    bottomright=Point(x=rect.bottomright.x + dx, y=rect.bottomright.y + dy),
-                )
-                self.undo_tree.remove_shape_by_id(rect.id)
-                self.undo_tree.add_shape(new_rect)
-                # rect["bbox"][0] += int(dx)
-                # rect["bbox"][1] += int(dy)
+        """Translate the selected shape by the mouse delta (single undo step)."""
+        if self.selected_object is None:
+            return
+        index = self.undo_tree.find_shape_index_by_id_or_none(self.selected_object)
+        if index is None:
+            return
+        dx = new_pos.x() - self.last_mouse_position.x()
+        dy = new_pos.y() - self.last_mouse_position.y()
+        self.document.move_shape(index, dx, dy)
+        self.update()
 
     def select_polygon(self, pos):
         selected_polygon = []
@@ -1175,4 +1149,22 @@ class CanvasWidget(QLabel):
         else:
             logger.debug("%s %s", "Setting selected object to ", object_id)
             self.selected_object = object_id
+        self.update()
+
+    def undo(self):
+        """Undo the last document mutation (add/remove/move/edit)."""
+        if self.undo_tree.undo():
+            self._after_history_change()
+
+    def redo(self):
+        """Redo the last undone document mutation."""
+        if self.undo_tree.redo():
+            self._after_history_change()
+
+    def _after_history_change(self):
+        # Selection may reference a shape that no longer exists; reset it and
+        # refresh the object list from the (now-authoritative) document.
+        self.selected_object = None
+        self.selected_vertex = None
+        self.object_list_action_slot.emit([self.undo_tree.shapes], OBJECT_LIST_ACTION.UPDATE)
         self.update()

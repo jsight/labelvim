@@ -41,6 +41,41 @@ class RemoveShapeCommand(Command):
         image.shapes.insert(self.index, copy.deepcopy(self.shape))
 
 
+@dataclass
+class MoveShapeCommand(Command):
+    """Translate a shape in place by (dx, dy). Undo applies the inverse."""
+
+    index: int
+    dx: float
+    dy: float
+
+    def execute(self, image: "UndoTree") -> None:
+        image.shapes[self.index].move(self.dx, self.dy)
+
+    def undo(self, image: "UndoTree") -> None:
+        image.shapes[self.index].move(-self.dx, -self.dy)
+
+
+@dataclass
+class ReplaceShapeCommand(Command):
+    """Swap the shape at ``index`` for a modified copy (e.g. a vertex edit).
+
+    A single undoable step for any geometry/category change.
+    """
+
+    index: int
+    new_shape: Shape
+    old_shape: Shape | None = None
+
+    def execute(self, image: "UndoTree") -> None:
+        self.old_shape = copy.deepcopy(image.shapes[self.index])
+        image.shapes[self.index] = copy.deepcopy(self.new_shape)
+
+    def undo(self, image: "UndoTree") -> None:
+        assert self.old_shape is not None, "execute() must run before undo()"
+        image.shapes[self.index] = copy.deepcopy(self.old_shape)
+
+
 # Undo tree node
 @dataclass
 class UndoTreeNode:
@@ -107,5 +142,17 @@ class UndoTree:
     def remove_shape_by_id(self, shape_id: int) -> None:
         self.remove_shape(self.find_shape_index_by_id(shape_id))
 
+    def move_shape(self, index: int, dx: float, dy: float) -> None:
+        self.execute_command(MoveShapeCommand(index, dx, dy))
+
+    def replace_shape(self, index: int, new_shape: Shape) -> None:
+        self.execute_command(ReplaceShapeCommand(index, new_shape))
+
     def find_shape_index_by_id(self, shape_id: int) -> int:
         return [index for index, value in enumerate(self.shapes) if value.id == shape_id][0]
+
+    def find_shape_index_by_id_or_none(self, shape_id: int) -> int | None:
+        for index, value in enumerate(self.shapes):
+            if value.id == shape_id:
+                return index
+        return None

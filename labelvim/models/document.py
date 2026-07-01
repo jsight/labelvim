@@ -95,7 +95,11 @@ class AnnotationDocument:
         self.selection.clear()
 
     def move_shape(self, index: int, dx: float, dy: float) -> None:
-        self.shapes[index].move(dx, dy)
+        self.undo.move_shape(index, dx, dy)
+
+    def replace_shape(self, index: int, new_shape: Shape) -> None:
+        """Swap the shape at ``index`` for a modified copy (single undo step)."""
+        self.undo.replace_shape(index, new_shape)
 
     # --- queries ---
 
