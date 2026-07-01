@@ -101,6 +101,10 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         )
         self.canvas_widget.scale_factor_slot.connect(self.update_zoom_label)
         self.canvas_widget.object_list_action_slot.connect(self.update_data_to_ObjectListWidget)
+        # Status bar: live cursor / selection / vertex / step summary from the canvas.
+        self.statusInfoLabel = QtWidgets.QLabel("")
+        self.statusbar.addWidget(self.statusInfoLabel, 1)
+        self.canvas_widget.status_slot.connect(self.statusInfoLabel.setText)
         self.LabelWidget.update_label_list_slot_transmitter.connect(
             self.update_label_list_to_Display
         )

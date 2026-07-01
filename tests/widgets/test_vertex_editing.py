@@ -73,3 +73,13 @@ def test_no_edit_returns_false(app):
     cw = _canvas(app)
     assert cw.cancel_vertex_edit() is False
     assert cw.commit_vertex_edit() is False
+
+
+def test_status_text_reflects_selection_and_vertex(app):
+    cw = _canvas(app)  # rect id=0 category_id=0, selected_object=0
+    cw.label_list = ["screen"]
+    assert "shape: screen" in cw.status_text()
+    cw.enter_or_cycle_vertex()
+    text = cw.status_text()
+    assert "vertex 1/4" in text
+    assert "nudge" in text

@@ -35,6 +35,7 @@ class CanvasWidget(QLabel):
     )  # Signal to receive the object selection notification
     btn_action_slot = pyqtSignal(Enum)  # Signal to transmit the button action
     scale_factor_slot = pyqtSignal(float)  # Signal to transmit the scale factor
+    status_slot = pyqtSignal(str)  # Signal carrying a status-bar summary line
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -125,6 +126,7 @@ class CanvasWidget(QLabel):
             self.start_point = None
             self.end_point = None
         self.update()
+        self._emit_status()
 
     def enforce_cursor_min_max(self):
         if self.cursor_pos[0] < 0:
@@ -211,6 +213,7 @@ class CanvasWidget(QLabel):
             available_size = self.size()
         self.scale_to_fit(available_size)
         self.update()
+        self._emit_status()
 
     def scale_to_fit(self, available_size):
         if self.original_pixmap:
@@ -337,6 +340,7 @@ class CanvasWidget(QLabel):
                 if end_point:
                     self.end_point = end_point
         self.update()
+        self._emit_status()
 
     def kb_move_complete(self):
         if not self.original_pixmap:
@@ -1171,6 +1175,7 @@ class CanvasWidget(QLabel):
             logger.debug("%s %s", "Setting selected object to ", object_id)
             self.selected_object = object_id
         self.update()
+        self._emit_status()
 
     def undo(self):
         """Undo the last document mutation (add/remove/move/edit)."""
@@ -1191,6 +1196,40 @@ class CanvasWidget(QLabel):
         self._editing_shape = None
         self.object_list_action_slot.emit([self.undo_tree.shapes], OBJECT_LIST_ACTION.UPDATE)
         self.update()
+
+    # --- status bar ---
+
+    def status_text(self):
+        """One-line summary of the current interaction state for the status bar."""
+        parts = []
+        if (
+            self.cursor_pos is not None
+            and self.original_pixmap is not None
+            and not self.original_pixmap.isNull()
+        ):
+            cx = int(self.cursor_pos[0] * self.original_pixmap.width())
+            cy = int(self.cursor_pos[1] * self.original_pixmap.height())
+            parts.append(f"cursor {cx},{cy}px")
+        if self.selected_object is not None:
+            shape = self.get_shape_by_id(self.selected_object)
+            if shape is not None:
+                parts.append(f"shape: {self._label_text(shape.category_id)}")
+        if self.is_editing_vertex() and self._editing_shape is not None:
+            count = len(self._editing_shape.vertices())
+            parts.append(f"vertex {(self.selected_vertex or 0) + 1}/{count}")
+            parts.append("nudge 1px (Shift 5px)")
+        elif self.cursor_pos is not None:
+            parts.append("step 1% (Shift 5%)")
+        return "    |    ".join(parts)
+
+    def get_shape_by_id(self, shape_id):
+        for shape in self.undo_tree.shapes:
+            if shape.id == shape_id:
+                return shape
+        return None
+
+    def _emit_status(self):
+        self.status_slot.emit(self.status_text())
 
     # --- keyboard vertex editing ---
 
@@ -1217,6 +1256,7 @@ class CanvasWidget(QLabel):
         self.selected_object = ids[i]
         self.selected_vertex = None
         self.update()
+        self._emit_status()
 
     def enter_or_cycle_vertex(self):
         """Tab: start editing the selected shape's vertices, or cycle to the next."""
@@ -1233,12 +1273,14 @@ class CanvasWidget(QLabel):
             count = len(self._editing_shape.vertices())
             self.selected_vertex = ((self.selected_vertex or 0) + 1) % count
         self.update()
+        self._emit_status()
 
     def _nudge_editing_vertex(self, dx, dy):
         if self._editing_shape is None:
             return
         self._editing_shape.nudge_vertex(self.selected_vertex or 0, dx, dy)
         self.update()
+        self._emit_status()
 
     def commit_vertex_edit(self):
         """Commit the live vertex edit as a single undoable step. Returns True
@@ -1253,6 +1295,7 @@ class CanvasWidget(QLabel):
         self._editing_shape = None
         self.selected_vertex = None
         self.update()
+        self._emit_status()
         return True
 
     def cancel_vertex_edit(self):
@@ -1263,4 +1306,5 @@ class CanvasWidget(QLabel):
         self._editing_shape = None
         self.selected_vertex = None
         self.update()
+        self._emit_status()
         return True
