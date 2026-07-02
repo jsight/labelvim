@@ -8,6 +8,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog
 
 from labelvim.models.document import ImageMeta
+from labelvim.services.image_directory import ImageDirectoryService
 from labelvim.utils.annotation_manager import AnnotationManager
 from labelvim.utils.config import (
     ANNOTATION_MODE,
@@ -40,14 +41,10 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.installEventFilter(self)
         self._flash_overlay = None
-        self.img_file_list = []
-        self.img_list = []
-        self.json_file_list = []
-        self.json_list = []
-        self.save_dir = ""
-        self.load_dir = ""
+        # Qt-free model of the image directory: image list, annotated stems,
+        # current index, deletion. LabelVim drives the UI from it.
+        self.dir_service = ImageDirectoryService()
         self.json_data = {}
-        self.current_index = 0
         self.annotation_mode = ANNOTATION_MODE.NONE
         self.annotation_type = ANNOTATION_TYPE.NONE
         self.label_file_name = "label.yaml"
@@ -117,6 +114,69 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.annotation_manager = None
         self.label_list_reader = label_list_reader
         self.modal_state = ModalState()
+
+    # --- directory state proxies (the ImageDirectoryService is the authority) ---
+
+    @property
+    def img_file_list(self):
+        return self.dir_service.image_paths
+
+    @property
+    def img_list(self):
+        return self.dir_service.stems
+
+    @property
+    def json_list(self):
+        return self.dir_service.annotated_stems
+
+    @property
+    def load_dir(self):
+        return self.dir_service.load_dir
+
+    @load_dir.setter
+    def load_dir(self, value):
+        self.dir_service.load_dir = value
+
+    @property
+    def save_dir(self):
+        return self.dir_service.save_dir
+
+    @save_dir.setter
+    def save_dir(self, value):
+        self.dir_service.save_dir = value
+
+    @property
+    def current_index(self):
+        return self.dir_service.current_index
+
+    @current_index.setter
+    def current_index(self, value):
+        self.dir_service.current_index = value
+
+    def __set_annotation_buttons_enabled(self, enabled):
+        for button in (
+            self.SaveBtn,
+            self.DeleteAnnotationBtn,
+            self.EditObjectBtn,
+            self.ClearAnnotationBtn,
+            self.actionSave,
+        ):
+            button.setEnabled(enabled)
+
+    def __load_annotation_for_current(self):
+        """Load (or clear) the annotation for the currently selected image and
+        toggle the annotation action buttons accordingly."""
+        stem = self.dir_service.current_stem()
+        if self.save_dir and self.dir_service.has_annotation(stem):
+            self.annotation_manager = AnnotationManager(self.save_dir, stem + ".json")
+            self.annotation_data = self.annotation_manager.annotation
+            self.canvas_widget.annotation_data_slot_receiver.emit(
+                self.annotation_data["annotations"]
+            )
+            self.__set_annotation_buttons_enabled(True)
+        else:
+            self.annotation_manager = None
+            self.__set_annotation_buttons_enabled(False)
 
     def eventFilter(self, source, event):
         # if event.type() in (QtCore.QEvent.KeyPress, QtCore.QEvent.KeyRelease):
@@ -201,15 +261,11 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def __load_directory_data(self):
         if self.load_dir:
-            # self.__reset()
-            self.img_file_list = get_image_list(self.load_dir)
+            self.dir_service.load(self.load_dir)
             logger.debug(
                 f"Total File in the selected directory {self.load_dir}: {len(self.img_file_list)}"
             )
             self.FileListWidget.update_list.emit(self.img_file_list)
-            self.img_list = [
-                os.path.splitext(os.path.split(file)[-1])[0] for file in self.img_file_list
-            ]
             self.listCountLabel.setText(f"Loaded {len(self.img_list)} images")
             if self.img_file_list:
                 self.__enable_btn_after_load()
@@ -229,31 +285,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         logger.debug(f"current index: {self.current_index}")
         logger.debug(f"file name: {file_name}")
         self.canvas_widget.load_image(file_name)
-        if self.save_dir:
-            f_name = os.path.splitext(os.path.split(file_name)[-1])[0]
-            logger.debug("==============================")
-            logger.debug(f"File Name: {f_name}")
-            logger.debug(f"JSON List: {self.json_list}")
-            if f_name in self.json_list:
-                logger.debug(f"JSON file found for {f_name}")
-                logger.debug(f"JSON file found for {file_name}")
-                self.annotation_manager = AnnotationManager(self.save_dir, f_name + ".json")
-                self.annotation_data = self.annotation_manager.annotation
-                self.canvas_widget.annotation_data_slot_receiver.emit(
-                    self.annotation_data["annotations"]
-                )
-                self.SaveBtn.setEnabled(True)
-                self.EditObjectBtn.setEnabled(True)
-                self.DeleteAnnotationBtn.setEnabled(True)
-                self.ClearAnnotationBtn.setEnabled(True)
-                self.actionSave.setEnabled(True)
-            else:
-                self.annotation_manager = None
-                self.SaveBtn.setEnabled(False)
-                self.EditObjectBtn.setEnabled(False)
-                self.DeleteAnnotationBtn.setEnabled(False)
-                self.ClearAnnotationBtn.setEnabled(False)
-                self.actionSave.setEnabled(False)
+        self.__load_annotation_for_current()
 
     def __save_directory(self):
         """
@@ -312,16 +344,10 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             self.LabelWidget.update_annotation_type(self.annotation_type)
             logger.debug(f"Save Directory: {self.save_dir}")
 
-            # Get list of JSON files in the selected directory
-            self.json_file_list = get_image_list(self.save_dir, extension=[".json"])
-            logger.debug(
-                f"Total JSON file in the selected directory {self.save_dir}: {len(self.json_file_list)}"
-            )
-
-            # Extract the base names (without extension) of JSON files
-            self.json_list = [
-                os.path.splitext(os.path.split(file)[-1])[0] for file in self.json_file_list
-            ]
+            # Track which images already have a saved annotation JSON in this dir.
+            json_paths = get_image_list(self.save_dir, extension=[".json"])
+            json_stems = [os.path.splitext(os.path.basename(p))[0] for p in json_paths]
+            self.dir_service.annotated_stems = set(return_mattching(json_stems, self.img_list))
 
             # Update the label list manager's path and load the label file if it exists
             self.label_list_reader.label_list_path = os.path.join(
@@ -338,42 +364,9 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             self.update_label_list_to_Label_Widget(self.label_list_reader.label_list)
             self.update_label_list_to_Display(self.label_list_reader.label_list)
 
-            # Match JSON files with image files if both lists are available
-            if self.json_list and self.img_list:
-                self.json_list = return_mattching(self.json_list, self.img_list)
-                self.json_file_list = [
-                    os.path.join(self.save_dir, file + ".json") for file in self.json_list
-                ]
-            logger.debug(
-                f"Total JSON file in the selected directory {self.save_dir}: {len(self.json_file_list)}"
-            )
-            logger.debug("==============================")
-            logger.debug("load directory")
             self.current_index = self.FileListWidget.get_current_index()
             logger.debug(f"save dir Current Index: {self.current_index}")
-            # Validate the current index
-            if 0 <= self.current_index < len(self.img_list):
-                current_file = self.img_list[self.current_index]
-                logger.debug(f"Current File: {current_file}")
-                if current_file in self.json_list:
-                    logger.debug(f"JSON file found for {current_file}")
-
-                    # Initialize the annotation manager and load annotation data
-                    self.annotation_manager = AnnotationManager(
-                        self.save_dir, current_file + ".json"
-                    )
-                    self.annotation_data = self.annotation_manager.annotation
-                    # print(f"next Annotation Data: {self.annotation_data}")
-
-                    # Emit the annotation data to the display
-                    self.canvas_widget.annotation_data_slot_receiver.emit(
-                        self.annotation_data["annotations"]
-                    )
-                    self.SaveBtn.setEnabled(True)
-                    self.DeleteAnnotationBtn.setEnabled(True)
-                    self.EditObjectBtn.setEnabled(True)
-                    self.ClearAnnotationBtn.setEnabled(True)
-                    self.actionSave.setEnabled(True)
+            self.__load_annotation_for_current()
 
     def __delete_file(self):
         """
@@ -385,30 +378,12 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         logger.debug("+==============================+")
         logger.debug(f"Deleted File Index: {deleted_file_index}")
 
-        if (
-            deleted_file_index is not None
-            and deleted_file_index >= 0
-            and deleted_file_index < len(self.img_list)
-        ):
-            # print(f"Deleted File: {self.img_list[deleted_file_index]}")
-            # Get the file name corresponding to the index
-            file_name = self.img_list[deleted_file_index]
-            # print(f"Deleted File Name: {file_name}")
-            # Remove the file from the image file list and the image list
-            self.img_file_list.pop(deleted_file_index)
-            self.img_list.pop(deleted_file_index)
-            #     # Remove the file name from the JSON list if it exists and remove the JSON file
-            if file_name in self.json_list:
-                # print(f"JSON file found for {file_name}")
-                self.json_list.remove(file_name)
-                # print(f"JSON List: {self.json_list}")
-                self.json_file_list.remove(os.path.join(self.save_dir, file_name + ".json"))
-                # print(f"JSON File List: {self.json_file_list}")
-                if os.path.exists(os.path.join(self.save_dir, file_name + ".json")):
-                    # print(f"{os.path.join(self.save_dir, file_name+'.json')}")
-                    # print(os.path.exists(os.path.join(self.save_dir, file_name+'.json')))
-                    os.remove(os.path.join(self.save_dir, file_name + ".json"))
-                    logger.debug(os.path.exists(os.path.join(self.save_dir, file_name + ".json")))
+        if deleted_file_index is not None and self.dir_service.is_valid_index(deleted_file_index):
+            # remove() drops the image + its annotation record and returns the
+            # on-disk JSON path to delete (if the image had a saved annotation).
+            json_to_delete = self.dir_service.remove(deleted_file_index)
+            if json_to_delete is not None and os.path.exists(json_to_delete):
+                os.remove(json_to_delete)
             self.FileListWidget.remove_selected_item()
 
     def __save_is_separate_from_load_dir(self):
@@ -460,102 +435,28 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                     mask_type=mask_type,
                 )
 
-            # Validate the current index and update lists
-            if 0 <= self.current_index < len(self.img_list):
-                file_name = self.img_list[self.current_index]
-                self.json_list.append(file_name)
-                self.json_file_list.append(os.path.join(self.save_dir, file_name + ".json"))
+            # Record that the current image now has a saved annotation.
+            stem = self.dir_service.current_stem()
+            if stem is not None:
+                self.dir_service.mark_annotated(stem)
             else:
                 logger.debug("Invalid index. Cannot update JSON lists.")
         else:
             logger.debug("Annotation manager is not available.")
 
     def __next(self):
-        """
-        Moves to the next item in the file list, updates the current index, and loads
-        annotation data if a JSON file is found for the current image.
-        """
-        # Move to the next index in the file list
+        """Move to the next image and load its annotation (if any)."""
         self.FileListWidget.next_index()
         self.current_index = self.FileListWidget.get_current_index()
-        logger.debug("========Next Button Clicked========")
-        logger.debug(f"Current index: {self.current_index}")
-
-        # Validate the current index
-        if 0 <= self.current_index < len(self.img_list):
-            current_file = self.img_list[self.current_index]
-            logger.debug(f"Current File: {current_file}")
-            if current_file in self.json_list:
-                logger.debug(f"JSON file found for {current_file}")
-
-                # Initialize the annotation manager and load annotation data
-                self.annotation_manager = AnnotationManager(self.save_dir, current_file + ".json")
-                self.annotation_data = self.annotation_manager.annotation
-                # print(f"next Annotation Data: {self.annotation_data}")
-
-                # Emit the annotation data to the display
-                self.canvas_widget.annotation_data_slot_receiver.emit(
-                    self.annotation_data["annotations"]
-                )
-                self.SaveBtn.setEnabled(True)
-                self.DeleteAnnotationBtn.setEnabled(True)
-                self.EditObjectBtn.setEnabled(True)
-                self.ClearAnnotationBtn.setEnabled(True)
-                self.actionSave.setEnabled(True)
-            else:
-                # Handle case where no JSON file is found
-                self.annotation_manager = None
-                self.SaveBtn.setEnabled(False)
-                self.DeleteAnnotationBtn.setEnabled(False)
-                self.EditObjectBtn.setEnabled(False)
-                self.ClearAnnotationBtn.setEnabled(False)
-                self.actionSave.setEnabled(False)
-        else:
-            logger.debug("Invalid index. Cannot load annotation data.")
+        logger.debug("========Next Button Clicked======== index %s", self.current_index)
+        self.__load_annotation_for_current()
 
     def __previous(self):
-        """
-        Moves to the previous item in the file list, updates the current index, and loads
-        annotation data if a JSON file is found for the current image.
-        """
-        # Move to the previous index in the file list
+        """Move to the previous image and load its annotation (if any)."""
         self.FileListWidget.previous_index()
         self.current_index = self.FileListWidget.get_current_index()
-        logger.debug("========Previous Button Clicked========")
-
-        logger.debug(f"Current index: {self.current_index}")
-
-        # Validate the current index
-        if 0 <= self.current_index < len(self.img_list):
-            current_file = self.img_list[self.current_index]
-            logger.debug(f"Current File: {current_file}")
-
-            if current_file in self.json_list:
-                logger.debug(f"JSON file found for {current_file}")
-
-                # Initialize the annotation manager and load annotation data
-                self.annotation_manager = AnnotationManager(self.save_dir, current_file + ".json")
-                self.annotation_data = self.annotation_manager.annotation
-                # print(f"previous Annotation Data: {self.annotation_data}")
-                # Emit the annotation data to the display
-                self.canvas_widget.annotation_data_slot_receiver.emit(
-                    self.annotation_data["annotations"]
-                )
-                self.SaveBtn.setEnabled(True)
-                self.DeleteAnnotationBtn.setEnabled(True)
-                self.EditObjectBtn.setEnabled(True)
-                self.ClearAnnotationBtn.setEnabled(True)
-                self.actionSave.setEnabled(True)
-            else:
-                # Handle case where no JSON file is found
-                self.annotation_manager = None
-                self.SaveBtn.setEnabled(False)
-                self.DeleteAnnotationBtn.setEnabled(False)
-                self.EditObjectBtn.setEnabled(False)
-                self.ClearAnnotationBtn.setEnabled(False)
-                self.actionSave.setEnabled(False)
-        else:
-            logger.debug("Invalid index. Cannot load annotation data.")
+        logger.debug("========Previous Button Clicked======== index %s", self.current_index)
+        self.__load_annotation_for_current()
 
     def __create_object(self):
         """Set up the environment for creating a new annotation.
@@ -636,11 +537,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
     # print(self.file_list)
 
     def __reset(self):
-        self.file_list = []
-        self.img_list = []
-        self.json_file_list = []
-        self.save_dir = ""
-        self.current_index = 0
+        self.dir_service = ImageDirectoryService()
         self.FileListWidget.clear_list()
         self.annotation_mode = ANNOTATION_MODE.NONE
         self.annotation_type = ANNOTATION_TYPE.NONE
