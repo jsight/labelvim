@@ -1,6 +1,5 @@
 import logging
 import os
-import shutil
 import sys
 from enum import Enum
 
@@ -9,6 +8,7 @@ from PyQt5.QtWidgets import QFileDialog
 
 from labelvim.models.document import ImageMeta
 from labelvim.services.image_directory import ImageDirectoryService
+from labelvim.services.persistence import AnnotationPersistenceService
 from labelvim.utils.annotation_manager import AnnotationManager
 from labelvim.utils.config import (
     ANNOTATION_MODE,
@@ -44,6 +44,8 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         # Qt-free model of the image directory: image list, annotated stems,
         # current index, deletion. LabelVim drives the UI from it.
         self.dir_service = ImageDirectoryService()
+        # Saving (annotation JSON, mask export, source-image move) lives here.
+        self.persistence = AnnotationPersistenceService()
         self.json_data = {}
         self.annotation_mode = ANNOTATION_MODE.NONE
         self.annotation_type = ANNOTATION_TYPE.NONE
@@ -81,7 +83,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.actionZoom_In.triggered.connect(self.__zoom_in)
         self.actionZoom_Out.triggered.connect(self.__zoom_out)
         self.actionFit_Windows.triggered.connect(self.__zoom_fit)
-        self.actionExport.triggered.connect(self.__handel_export)
+        self.actionExport.triggered.connect(self.__handle_export)
         # self.actionAnnotation_Type.triggered.connect(self.show_task_selection_dialog)
 
         self.show()
@@ -152,6 +154,22 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
     @current_index.setter
     def current_index(self, value):
         self.dir_service.current_index = value
+
+    @property
+    def save_mask(self):
+        return self.persistence.save_mask
+
+    @save_mask.setter
+    def save_mask(self, value):
+        self.persistence.save_mask = value
+
+    @property
+    def include_img(self):
+        return self.persistence.include_img
+
+    @include_img.setter
+    def include_img(self, value):
+        self.persistence.include_img = value
 
     def __set_annotation_buttons_enabled(self, enabled):
         for button in (
@@ -386,63 +404,42 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                 os.remove(json_to_delete)
             self.FileListWidget.remove_selected_item()
 
-    def __save_is_separate_from_load_dir(self):
-        # Normalize paths to handle different separators and relative paths
-        norm_dir1 = os.path.normpath(self.load_dir)
-        norm_dir2 = os.path.normpath(self.save_dir)
-        return norm_dir1 != norm_dir2
-
     def __save(self):
-        """
-        Saves the current annotation data to a JSON file and updates the internal lists.
-        """
-        # Ensure the annotation manager is available
-        if self.annotation_manager is not None:
-            input_img_file = os.path.join(self.load_dir, self.img_file_list[self.current_index])
-            # Build the document from the canvas shapes + image metadata; its
-            # to_dict() is the single save serializer (stable, polygon-aware, and
-            # guaranteed to round-trip a load->save cycle).
-            document = self.canvas_widget.to_document()
-            document.meta = ImageMeta(
-                path=os.path.basename(input_img_file),
-                data=self.annotation_manager.annotation.get("imageData"),
-                height=self.canvas_widget.original_pixmap.height(),
-                width=self.canvas_widget.original_pixmap.width(),
+        """Persist the current annotation (JSON, optional mask, image move)."""
+        stem = self.dir_service.current_stem()
+        input_img_file = self.dir_service.current_path()
+        if self.annotation_manager is None or stem is None or input_img_file is None:
+            logger.debug("Nothing to save (no image / save directory).")
+            return
+
+        # Build the document from the canvas shapes + image metadata; its
+        # to_dict() is the single on-disk serializer (stable, polygon-aware, and
+        # guaranteed to round-trip a load->save cycle).
+        document = self.canvas_widget.to_document()
+        document.meta = ImageMeta(
+            path=os.path.basename(input_img_file),
+            data=self.annotation_manager.annotation.get("imageData"),
+            height=self.canvas_widget.original_pixmap.height(),
+            width=self.canvas_widget.original_pixmap.width(),
+        )
+        self.persistence.write_document(document, self.save_dir, stem)
+        self.dir_service.mark_annotated(stem)
+
+        # Relocate the finished image next to its annotation when the save dir
+        # differs from the load dir (reload the file list to reflect the move).
+        moved = self.persistence.move_into_save_dir(input_img_file, self.save_dir)
+        if moved:
+            self.__load_directory_data()
+
+        if self.save_mask:
+            mask_type = "bbox" if self.annotation_type == ANNOTATION_TYPE.BBOX else "polygon"
+            self.persistence.write_mask(
+                document,
+                moved or input_img_file,
+                self.save_dir,
+                self.label_list_reader.label_list,
+                mask_type,
             )
-            self.annotation_manager.annotation = document.to_dict()
-            self.annotation_manager.save_annotation()
-            if self.__save_is_separate_from_load_dir():
-                # If they are separate dirs, move the input file there
-                save_img_file = os.path.join(self.save_dir, os.path.basename(input_img_file))
-                shutil.move(input_img_file, save_img_file)
-                self.__load_directory_data()
-            if self.save_mask:
-                import cv2
-
-                # if self.include_img:
-                image_data = cv2.imread(input_img_file)
-                image_data = cv2.cvtColor(image_data, cv2.COLOR_BGR2RGB)
-                # else:
-                #     image_data = None
-                if self.annotation_type == ANNOTATION_TYPE.BBOX:
-                    mask_type = "bbox"
-                else:
-                    mask_type = "polygon"
-                self.annotation_manager.save_mask(
-                    image_data=image_data,
-                    label_map=self.label_list_reader.label_list,
-                    include_img=self.include_img,
-                    mask_type=mask_type,
-                )
-
-            # Record that the current image now has a saved annotation.
-            stem = self.dir_service.current_stem()
-            if stem is not None:
-                self.dir_service.mark_annotated(stem)
-            else:
-                logger.debug("Invalid index. Cannot update JSON lists.")
-        else:
-            logger.debug("Annotation manager is not available.")
 
     def __next(self):
         """Move to the next image and load its annotation (if any)."""
@@ -656,7 +653,7 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
     def exit_app(self):
         self.close()
 
-    def __handel_export(self):
+    def __handle_export(self):
         if self.save_dir:
             dialog = ExportFileDialog(save_dir=self.save_dir, data_dir=self.load_dir)
             dialog.show()
