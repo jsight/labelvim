@@ -16,7 +16,7 @@ from labelvim.models.document import (
     shape_from_annotation,
 )
 from labelvim.models.model import Point, Polygon, Rectangle
-from labelvim.utils.config import ANNOTATION_MODE, ANNOTATION_TYPE, OBJECT_LIST_ACTION
+from labelvim.utils.config import ANNOTATION_MODE, ANNOTATION_TYPE
 from labelvim.widgets.label_picker import LabelPicker
 
 logger = logging.getLogger(__name__)
@@ -25,17 +25,12 @@ logger = logging.getLogger(__name__)
 class CanvasWidget(QLabel):
     """A custom QLabel widget to display images and draw rectangles on them."""
 
-    update_label_list_slot_transmitter = pyqtSignal(list)  # Signal to update the label list
-    update_label_list_slot_receiver = pyqtSignal(list)  # Signal to update the label list
-    annotation_data_slot_transmitter = pyqtSignal(list)  # Signal to transmit the annotation data
-    annotation_data_slot_receiver = pyqtSignal(list)  # Signal to receive the annotation data
-    object_list_action_slot = pyqtSignal(list, Enum)  # Signal to transmit the object list action
-    object_selection_notification_slot_receiver = pyqtSignal(
-        int
-    )  # Signal to receive the object selection notification
-    btn_action_slot = pyqtSignal(Enum)  # Signal to transmit the button action
-    scale_factor_slot = pyqtSignal(float)  # Signal to transmit the scale factor
-    status_slot = pyqtSignal(str)  # Signal carrying a status-bar summary line
+    update_label_list_slot_receiver = pyqtSignal(list)  # push a new label list into the canvas
+    annotation_data_slot_receiver = pyqtSignal(list)  # load annotations (list of COCO-like dicts)
+    shapes_changed = pyqtSignal(list)  # current shapes -> object list ([] = cleared)
+    btn_action_slot = pyqtSignal(Enum)  # annotation-mode change
+    scale_factor_slot = pyqtSignal(float)  # scale factor -> zoom label
+    status_slot = pyqtSignal(str)  # status-bar summary line
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -74,7 +69,6 @@ class CanvasWidget(QLabel):
         self.update_label_list_slot_receiver.connect(self.update_label_list)
         self.annotation_data_slot_receiver.connect(self.update_annotation_from_json)
         self.btn_action_slot.connect(self.set_annotation_mode)
-        self.object_selection_notification_slot_receiver.connect(self.select_object)
         self.scale_factor = 1.0
         # self.__reset_scale_factor()
         self.annotation_mode = ANNOTATION_MODE.NONE
@@ -196,7 +190,7 @@ class CanvasWidget(QLabel):
         logger.debug("Setting selected_object to none")
         self.selected_object = None
         # emit signal to clear the object list
-        self.object_list_action_slot.emit([None], OBJECT_LIST_ACTION.CLEAR)
+        self.shapes_changed.emit([])
         self.annotation_mode = ANNOTATION_MODE.NONE
         self.scale_factor = 1.0
         # print(f"File Name: {file_name}")
@@ -543,11 +537,7 @@ class CanvasWidget(QLabel):
                 logger.debug("Delete Key Pressed")
                 if self.selected_object is not None and self.selected_vertex is None:
                     self.undo_tree.remove_shape(self.selected_object)
-                    # self.rectangles.pop(self.selected_object)
-                    # emit signal to remove object from the object list
-                    self.object_list_action_slot.emit(
-                        [self.selected_object], OBJECT_LIST_ACTION.REMOVE
-                    )
+                    self.shapes_changed.emit(self.undo_tree.shapes)
                     self.selected_object = None
                 elif self.selected_object is not None and self.selected_vertex is not None:
                     self.remove_point_from_polygon(self.selected_vertex)
@@ -729,7 +719,7 @@ class CanvasWidget(QLabel):
             bottomright=Point(bbox.x() + bbox.width(), bbox.y() + bbox.height()),
         )
         self.undo_tree.add_shape(new_rectangle)
-        self.object_list_action_slot.emit([self.undo_tree.shapes[-1]], OBJECT_LIST_ACTION.ADD)
+        self.shapes_changed.emit(self.undo_tree.shapes)
 
     def _create_polygon(self, poly, category_index):
         # Points are in original-image pixel space (same as every other shape).
@@ -739,7 +729,7 @@ class CanvasWidget(QLabel):
             points=[Point(p.x(), p.y()) for p in poly],
         )
         self.undo_tree.add_shape(new_polygon)
-        self.object_list_action_slot.emit([self.undo_tree.shapes[-1]], OBJECT_LIST_ACTION.ADD)
+        self.shapes_changed.emit(self.undo_tree.shapes)
         self.polygon_points = []
 
     @staticmethod
@@ -1106,7 +1096,7 @@ class CanvasWidget(QLabel):
         for index, anno in enumerate(annotation):
             self.undo_tree.add_shape(shape_from_annotation(index, anno))
         if self.undo_tree.shapes:
-            self.object_list_action_slot.emit([self.undo_tree.shapes], OBJECT_LIST_ACTION.UPDATE)
+            self.shapes_changed.emit(self.undo_tree.shapes)
         logger.debug(f"Loaded shapes: {len(self.undo_tree.shapes)}")
         self.update()
 
@@ -1137,7 +1127,7 @@ class CanvasWidget(QLabel):
         if self.annotation_mode == ANNOTATION_MODE.CLEAR:
             self.clear_annotation()
             # if len(self.rectangles) > 0:
-            self.object_list_action_slot.emit([None], OBJECT_LIST_ACTION.CLEAR)
+            self.shapes_changed.emit([])
             self.annotation_mode = ANNOTATION_MODE.NONE
         elif self.annotation_mode == ANNOTATION_MODE.DELETE:
             if self.selected_object is not None:
@@ -1151,11 +1141,7 @@ class CanvasWidget(QLabel):
                 # update the new object id
                 # for idx, rect in enumerate(self.rectangles):
                 #   rect["id"] = idx
-                # Refresh the object list with the remaining shapes (UPDATE
-                # handles model Shapes; the old REMOVE path expected dicts).
-                self.object_list_action_slot.emit(
-                    [self.undo_tree.shapes], OBJECT_LIST_ACTION.UPDATE
-                )
+                self.shapes_changed.emit(self.undo_tree.shapes)
                 logger.debug("Setting selected object to None")
                 self.selected_object = None
             self.annotation_mode = ANNOTATION_MODE.CREATE
@@ -1194,7 +1180,7 @@ class CanvasWidget(QLabel):
         self.selected_vertex = None
         self._editing_index = None
         self._editing_shape = None
-        self.object_list_action_slot.emit([self.undo_tree.shapes], OBJECT_LIST_ACTION.UPDATE)
+        self.shapes_changed.emit(self.undo_tree.shapes)
         self.update()
 
     # --- status bar ---

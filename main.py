@@ -95,11 +95,9 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         # Connect signals and slots
         self.FileListWidget.notify_selected_item.connect(self.__load_image)
         self.canvas_widget.update_label_list_slot_receiver.emit(self.LabelWidget.label_list)
-        self.canvas_widget.update_label_list_slot_transmitter.connect(
-            self.update_label_list_to_Label_Widget
-        )
         self.canvas_widget.scale_factor_slot.connect(self.update_zoom_label)
-        self.canvas_widget.object_list_action_slot.connect(self.update_data_to_ObjectListWidget)
+        # Canvas shape changes -> object list rebuilds itself directly.
+        self.canvas_widget.shapes_changed.connect(self.ObjectLabelListWidget.set_shapes)
         # Status bar: live cursor / selection / vertex / step summary from the canvas.
         self.statusInfoLabel = QtWidgets.QLabel("")
         self.statusbar.addWidget(self.statusInfoLabel, 1)
@@ -107,8 +105,9 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.LabelWidget.update_label_list_slot_transmitter.connect(
             self.update_label_list_to_Display
         )
+        # Object-list selection -> select that shape on the canvas (direct).
         self.ObjectLabelListWidget.object_selection_notification_slot.connect(
-            self.canvas_widget.object_selection_notification_slot_receiver
+            self.canvas_widget.select_object
         )
 
         self.json_writer = None
@@ -616,11 +615,6 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             label_list
         )  # Update the label list in the object list widget
         # self.ObjectLabelListWidget.label_list = label_list # Update the label list in the object list widget
-
-    def update_data_to_ObjectListWidget(self, data, action):
-        # print(f"update_data_to_ObjectListWidget: {data}")
-        # print(f"update_data_to_ObjectListWidget: {action}")
-        self.ObjectLabelListWidget.object_list_slot_receiver.emit(data, action)
 
     def __save_mask_flag_set(self):
         self.save_mask = not self.save_mask

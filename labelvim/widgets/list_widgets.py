@@ -1,15 +1,12 @@
 import logging
-from enum import Enum
 
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QStringListModel, Qt, pyqtSignal
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QAction, QInputDialog, QMenu, QMessageBox
 
-from labelvim.models.model import Shape
-
 # External imports
-from labelvim.utils.config import ANNOTATION_TYPE, OBJECT_LIST_ACTION
+from labelvim.utils.config import ANNOTATION_TYPE
 from labelvim.widgets.custom_delegates import CustomDelegate
 
 logger = logging.getLogger(__name__)
@@ -412,8 +409,7 @@ class CustomObjectListWidget(QtWidgets.QListView):
         annotation_type (str): The type of annotation currently being handled.
     """
 
-    object_list_slot_receiver = pyqtSignal(list, Enum)  # Signal to update the label list
-    object_selection_notification_slot = pyqtSignal(int)  # Signal to update the label list
+    object_selection_notification_slot = pyqtSignal(int)  # selected object id (-1 = cleared)
 
     def __init__(self, parent=None):
         """
@@ -434,11 +430,6 @@ class CustomObjectListWidget(QtWidgets.QListView):
         # handel clicked event
         self.clicked.connect(self.on_item_clicked)
         self.set_label_list(self.label_list)
-        # Connect the signals
-        self.object_list_slot_receiver.connect(
-            self.__receiver_action
-        )  # Connect the signal to update the label list
-        # self.model.dataChanged.connect(self.handle_data_changed)  # Connect the dataChanged signal
 
     def set_model(self):
         """
@@ -450,33 +441,18 @@ class CustomObjectListWidget(QtWidgets.QListView):
         # # Set the edit triggers to NoEditTriggers
         self.setEditTriggers(QtWidgets.QListView.NoEditTriggers)
 
-    def __receiver_action(self, data: any, action: Enum):
-        data = data[0]
-        if action == OBJECT_LIST_ACTION.UPDATE:
-            if isinstance(data, list):
-                category_id = [label.category_id for label in data]
-                object_id = [label.id for label in data]
-                self.object = {label.id: label.category_id for label in data}
-                self.set_label_list(category_id=category_id, object_id=object_id)
-        elif action == OBJECT_LIST_ACTION.ADD:
-            # if isinstance(data, dict):
-            if isinstance(data, Shape):
-                if data.id in self.object:
-                    return
-                self.object[data.id] = data.category_id
-                self.add_label(category_id=data.category_id, object_id=data.id)
-        elif action == OBJECT_LIST_ACTION.CLEAR:
-            self.clear_list()
-        elif action == OBJECT_LIST_ACTION.REMOVE:
-            # it will also remove the label from label_list and id from object_id_list
-            # and update the new object_list, with new label_list and object_id_list
-            if isinstance(data, list):
-                self.remove_label(data)
-        elif action == OBJECT_LIST_ACTION.EDIT:
-            if isinstance(data, dict):
-                self.edit_label(data["id"], data["category_id"])
-        else:
-            pass
+    def set_shapes(self, shapes: list):
+        """Rebuild the object list to reflect the current document shapes.
+
+        The canvas emits its full shape list on every change ([] = cleared), so
+        the list is a plain projection of that — no per-item add/remove/update
+        protocol.
+        """
+        self.object = {shape.id: shape.category_id for shape in shapes}
+        self.set_label_list(
+            category_id=[shape.category_id for shape in shapes],
+            object_id=[shape.id for shape in shapes],
+        )
 
     def set_label_list(self, category_id: list | None = None, object_id: list | None = None):
         """
@@ -508,57 +484,6 @@ class CustomObjectListWidget(QtWidgets.QListView):
         self.category_id.clear()
         self.object.clear()
         self.model.setStringList([])
-
-    def add_label(self, category_id: str, object_id: int):
-        """
-        Adds a new label to the list view.
-
-        Args:
-            new_label (str): The label to add.
-        """
-        # Add the new label to the list
-        self.object_id.append(object_id)
-        self.category_id.append(category_id)
-        # object_list = [f"{self.label_list[id]}_{object_id[id]}" for id in self.category_id]
-        object_list = [
-            f"{self.label_list[id]} ({self.object_id[idx]})"
-            for idx, id in enumerate(self.category_id)
-        ]
-        # Update the model
-        self.model.setStringList(object_list)
-
-    def remove_label(self, data: list):
-        """
-        Removes a label from the list view.
-
-        Args:
-            label (str): The label to remove.
-        """
-        logger.debug(f"Data To Be remoed: {data}")
-        category_id = [label["category_id"] for label in data]
-        object_id = [label["id"] for label in data]
-        self.object = {label["id"]: label["category_id"] for label in data}
-        self.set_label_list(category_id=category_id, object_id=object_id)
-
-    def edit_label(self, object_id, category_id):
-        """
-        Triggers inline editing for the selected item.
-
-        Args:
-            index (QModelIndex): The index of the item to be edited.
-        """
-        # index = self.object_id_list.index(object_id)
-        # self.label_list[index] = label
-        if object_id in self.object:
-            index = self.object_id.index(object_id)
-            self.category_id[index] = category_id
-            self.object[object_id] = category_id
-            object_list = [
-                f"{self.label_list[id]} ({self.object_id[idx]})"
-                for idx, id in enumerate(self.category_id)
-            ]
-            # object_list = [f"{self.label_list[id]}_{object_id[id]}" for id in self.category_id]
-            self.model.setStringList(object_list)
 
     def refresh_list(self, label_list: list):
         """
