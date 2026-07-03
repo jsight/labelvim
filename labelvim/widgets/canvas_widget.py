@@ -16,6 +16,7 @@ from labelvim.models.document import (
     shape_from_annotation,
 )
 from labelvim.models.model import Point, Polygon, Rectangle
+from labelvim.utils import coords
 from labelvim.utils.config import ANNOTATION_MODE, ANNOTATION_TYPE
 from labelvim.widgets.label_picker import LabelPicker
 
@@ -559,16 +560,14 @@ class CanvasWidget(QLabel):
         if not self.current_pixmap:
             return
         painter = QPainter(self)
-        offset_x = (self.width() - self.current_pixmap.width()) // 2
-        offset_y = (self.height() - self.current_pixmap.height()) // 2
+        offset_x = coords.image_offset(self.width(), self.current_pixmap.width())
+        offset_y = coords.image_offset(self.height(), self.current_pixmap.height())
         painter.drawPixmap(offset_x, offset_y, self.current_pixmap)
 
         def to_screen(x, y):
             """Map model coordinates (original-image pixels) to screen pixels."""
-            return QPoint(
-                offset_x + int(x * self.scale_factor),
-                offset_y + int(y * self.scale_factor),
-            )
+            sx, sy = coords.to_screen(x, y, self.scale_factor, offset_x, offset_y)
+            return QPoint(sx, sy)
 
         # Committed shapes are rendered purely from the document, regardless of
         # the active annotation type. A shape under live vertex-editing is drawn
@@ -784,17 +783,20 @@ class CanvasWidget(QLabel):
 
                 QPoint: The position on the original image.
         """
-        displayed_image_size = self.current_pixmap.size()
-        offset_x = (self.width() - self.current_pixmap.width()) // 2
-        offset_y = (self.height() - self.current_pixmap.height()) // 2
-        relative_x = pos.x() - offset_x
-        relative_y = pos.y() - offset_y
-        if (
-            0 <= relative_x < displayed_image_size.width()
-            and 0 <= relative_y < displayed_image_size.height()
-        ):
-            return QPoint(int(relative_x / self.scale_factor), int(relative_y / self.scale_factor))
-        return None
+        offset_x = coords.image_offset(self.width(), self.current_pixmap.width())
+        offset_y = coords.image_offset(self.height(), self.current_pixmap.height())
+        mapped = coords.to_original(
+            pos.x(),
+            pos.y(),
+            self.scale_factor,
+            offset_x,
+            offset_y,
+            self.current_pixmap.width(),
+            self.current_pixmap.height(),
+        )
+        if mapped is None:
+            return None
+        return QPoint(mapped[0], mapped[1])
 
     def select_rectangle(self, pos):
         """
