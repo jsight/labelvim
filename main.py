@@ -7,13 +7,13 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog
 
 from labelvim.models.document import ImageMeta
+from labelvim.services.config_service import ConfigService
 from labelvim.services.image_directory import ImageDirectoryService
 from labelvim.services.persistence import AnnotationPersistenceService
 from labelvim.utils.annotation_manager import AnnotationManager
 from labelvim.utils.config import (
     ANNOTATION_MODE,
     ANNOTATION_TYPE,
-    ConfigSpecHandler,
 )
 from labelvim.utils.label_list_reader import label_list_reader
 from labelvim.utils.utils import get_image_list, return_mattching
@@ -46,14 +46,14 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.dir_service = ImageDirectoryService()
         # Saving (annotation JSON, mask export, source-image move) lives here.
         self.persistence = AnnotationPersistenceService()
+        # Per-save-directory config.yaml (annotation type + mask toggles).
+        self.config = ConfigService()
         self.json_data = {}
         self.annotation_mode = ANNOTATION_MODE.NONE
         self.annotation_type = ANNOTATION_TYPE.NONE
         self.label_file_name = "label.yaml"
         self.save_mask = False
         self.include_img = False
-        self.config_file_name = "config.yaml"
-        self.config_manager = None
 
         # btn action
         self.OpenDirBtn.clicked.connect(self.__load_directory)
@@ -311,54 +311,24 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         self.save_dir = QFileDialog.getExistingDirectory(self, "Select Save Directory")
         if self.save_dir:
-            if not os.path.exists(os.path.join(self.save_dir, "config.yaml")):
-                logger.debug("Config file not found")
-                self.config_file_name = "config.yaml"
-                self.show_task_selection_dialog()
-                self.config_manager = ConfigSpecHandler(
-                    os.path.join(self.save_dir, self.config_file_name)
-                )
-                self.config_parm = self.config_manager.get_config()
-                self.config_parm["annotation_type"] = self.annotation_type.value
-                self.config_parm["save_mask"] = self.save_mask
-                self.config_parm["include_img"] = self.include_img
-                self.config_manager.update_config(self.config_parm)
+            self.config.open(self.save_dir)
+
+            # Resolve the annotation type: use the stored one, or ask the user.
+            stored = self.config.annotation_type_value()
+            if stored is None or ANNOTATION_TYPE(stored) == ANNOTATION_TYPE.NONE:
+                self.show_task_selection_dialog()  # sets self.annotation_type
             else:
-                self.config_file_name = "config.yaml"
-                logger.debug("Config file found")
-                self.config_manager = ConfigSpecHandler(
-                    os.path.join(self.save_dir, self.config_file_name)
-                )
-                self.config_parm = self.config_manager.get_config()
-                logger.debug(f"Config Parm: {self.config_parm}")
-                if "annotation_type" in self.config_parm.keys():
-                    logger.debug(f"Annotation Type: {self.config_parm['annotation_type']}")
-                    self.annotation_type = ANNOTATION_TYPE(self.config_parm["annotation_type"])
-                    logger.debug(f"Annotation Type: {self.annotation_type}")
-                    if self.annotation_type == ANNOTATION_TYPE.NONE:
-                        self.show_task_selection_dialog()
-                        self.config_parm["annotation_type"] = self.annotation_type.value
-                    else:
-                        self.LabelWidget.update_annotation_type(self.annotation_type)
-                        self.canvas_widget.update_annotation_type(self.annotation_type)
-                else:
-                    self.show_task_selection_dialog()
-                    self.config_parm["annotation_type"] = self.annotation_type.value
-                if "save_mask" in self.config_parm.keys():
-                    self.save_mask = self.config_parm["save_mask"]
-                else:
-                    self.save_mask = False
-                self.config_parm["save_mask"] = self.save_mask
-                self.__change_icon_save_mask()
-                if "include_img" in self.config_parm.keys():
-                    self.include_img = self.config_parm["include_img"]
-                else:
-                    self.include_img = False
-                self.config_parm["include_img"] = self.include_img
-                self.__change_icon_save_mask_include_img()
-                self.config_manager.update_config(self.config_parm)
+                self.annotation_type = ANNOTATION_TYPE(stored)
+
+            # Mask-export toggles come from config (default off).
+            self.save_mask = self.config.save_mask()
+            self.include_img = self.config.include_img()
+            self.config.update(self.annotation_type.value, self.save_mask, self.include_img)
+            self.__change_icon_save_mask()
+            self.__change_icon_save_mask_include_img()
 
             self.LabelWidget.update_annotation_type(self.annotation_type)
+            self.canvas_widget.update_annotation_type(self.annotation_type)
             logger.debug(f"Save Directory: {self.save_dir}")
 
             # Track which images already have a saved annotation JSON in this dir.
@@ -527,17 +497,6 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
     def update_zoom_label(self, scale_factor):
         self.ZoomLabel.setText(f"{scale_factor * 100:.2f}%")
 
-    # def __get_file_list(self):
-    # self.file_list = get_image_list(self.load_dir)
-    # print(f"Total File in the selected directory {self.load_dir}: {len(self.file_list)}")
-    # print(self.file_list)
-
-    def __reset(self):
-        self.dir_service = ImageDirectoryService()
-        self.FileListWidget.clear_list()
-        self.annotation_mode = ANNOTATION_MODE.NONE
-        self.annotation_type = ANNOTATION_TYPE.NONE
-
     def __disable_btn_at_start(self):
         self.DeleteFileBtn.setEnabled(False)
         self.NextBtn.setEnabled(False)
@@ -582,20 +541,12 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
     def flash(self, message, level="info"):
         """Show a non-blocking transient message (keeps the keyboard flow going).
 
-        Use for info/warnings; reserve msg_dialog for real confirmations.
+        Use for non-blocking info/warnings (reserve modal dialogs for genuine
+        destructive confirmations).
         """
         if self._flash_overlay is None:
             self._flash_overlay = FlashOverlay(self)
         self._flash_overlay.flash(message, level)
-
-    def msg_dialog(self, title, msg):
-        msg_box = QtWidgets.QMessageBox()
-        msg_box.setWindowTitle(title)
-        msg_box.setText(msg)
-        # msg_box.exec_()
-        button = msg_box.exec()
-        if button == QtWidgets.QMessageBox.Ok:
-            logger.debug("OK")
 
     ## Signal and Slot
     def update_label_list_to_Display(self, label_list):
@@ -618,18 +569,12 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def __save_mask_flag_set(self):
         self.save_mask = not self.save_mask
-        logger.debug(f"Save Mask: {self.save_mask}")
-        if self.config_manager is not None:
-            self.config_parm["save_mask"] = self.save_mask
-            self.config_manager.update_config(self.config_parm)
+        self.config.update(self.annotation_type.value, self.save_mask, self.include_img)
         self.__change_icon_save_mask()
 
     def __save_mask_include_img_flag_set(self):
         self.include_img = not self.include_img
-        logger.debug(f"Save Mask Include Image: {self.include_img}")
-        if self.config_manager is not None:
-            self.config_parm["include_img"] = self.include_img
-            self.config_manager.update_config(self.config_parm)
+        self.config.update(self.annotation_type.value, self.save_mask, self.include_img)
         self.__change_icon_save_mask_include_img()
 
     def __change_icon_save_mask(self):
