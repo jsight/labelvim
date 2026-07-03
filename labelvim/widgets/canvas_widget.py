@@ -84,6 +84,8 @@ class CanvasWidget(QLabel):
         self._pending_shape = None  # geometry awaiting a label: ("bbox"|"poly", geom)
         self._editing_index = None  # index of the shape being vertex-edited
         self._editing_shape = None  # working copy edited live; committed on Enter
+        self._drag_index = None  # index of the shape being mouse-dragged
+        self._drag_original = None  # its pre-drag copy; the drag commits one undo step
 
     # --- views onto the document's state (the single source of truth) ---
 
@@ -387,6 +389,9 @@ class CanvasWidget(QLabel):
                             else:
                                 self.select_rectangle(self.last_mouse_position)
                             logger.debug(f"Selected Rectangle: {self.selected_object}")
+                        # Snapshot the shape so the whole drag is one undo step.
+                        if self.selected_object is not None:
+                            self._begin_drag(self.selected_object)
                 elif self.annotation_type == ANNOTATION_TYPE.POLYGON:
                     new_map = self.map_to_original_image(click_pos)
                     self.polygon_move_point = None
@@ -503,8 +508,10 @@ class CanvasWidget(QLabel):
                     self.selected_vertex is not None
                     and self.annotation_mode == ANNOTATION_MODE.EDIT
                 ):
+                    self._commit_drag()  # one undo step for the whole vertex drag
                     self.selected_vertex = None
                 elif self.moving_object and self.annotation_mode == ANNOTATION_MODE.EDIT:
+                    self._commit_drag()  # one undo step for the whole move
                     self.moving_object = False
                 self.start_point = None
                 self.end_point = None
@@ -893,54 +900,66 @@ class CanvasWidget(QLabel):
                 return rect
         return None
 
+    def _begin_drag(self, shape_id):
+        """Start a mouse-drag edit of a shape: snapshot it so the whole drag
+        commits as a single undo step on release (see _commit_drag)."""
+        index = self.undo_tree.find_shape_index_by_id_or_none(shape_id)
+        if index is None:
+            self._drag_index = None
+            self._drag_original = None
+            return
+        self._drag_index = index
+        self._drag_original = copy.deepcopy(self.undo_tree.shapes[index])
+
+    def _commit_drag(self):
+        """Record the net effect of a mouse drag as one undoable step."""
+        index = self._drag_index
+        original = self._drag_original
+        self._drag_index = None
+        self._drag_original = None
+        if index is None or original is None or index >= len(self.undo_tree.shapes):
+            return
+        final = copy.deepcopy(self.undo_tree.shapes[index])
+        if isinstance(final, Rectangle):
+            final = final.normalized()
+        if final == original:
+            return  # a click without movement — no history entry
+        self.undo_tree.shapes[index] = copy.deepcopy(original)  # restore silently
+        self.document.replace_shape(index, final)  # then one command original -> final
+        self.update()
+
     def move_vertex(self, vertex_index, new_pos):
-        """Reshape the selected rectangle by dragging one corner.
+        """Reshape the dragged rectangle by moving one corner, in place.
 
         Corners: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right. The
-        result is normalized so topleft <= bottomright, and applied as a single
-        undoable ReplaceShapeCommand (in place, no reordering).
+        edit is applied live (no history); the drag is normalized and committed
+        as a single undo step on mouse release.
         """
-        if self.selected_object is None:
+        if self._drag_index is None:
             return
-        index = self.undo_tree.find_shape_index_by_id_or_none(self.selected_object)
-        if index is None:
-            return
-        rectangle = self.undo_tree.shapes[index]
+        rectangle = self.undo_tree.shapes[self._drag_index]
         if not isinstance(rectangle, Rectangle):
             return
-        tlx, tly = rectangle.topleft.x, rectangle.topleft.y
-        brx, bry = rectangle.bottomright.x, rectangle.bottomright.y
         if vertex_index == 0:
-            tlx, tly = new_pos.x(), new_pos.y()
+            rectangle.topleft.x, rectangle.topleft.y = new_pos.x(), new_pos.y()
         elif vertex_index == 1:
-            brx, tly = new_pos.x(), new_pos.y()
+            rectangle.bottomright.x, rectangle.topleft.y = new_pos.x(), new_pos.y()
         elif vertex_index == 2:
-            tlx, bry = new_pos.x(), new_pos.y()
+            rectangle.topleft.x, rectangle.bottomright.y = new_pos.x(), new_pos.y()
         elif vertex_index == 3:
-            brx, bry = new_pos.x(), new_pos.y()
+            rectangle.bottomright.x, rectangle.bottomright.y = new_pos.x(), new_pos.y()
         else:
             return
-        x0, x1 = sorted((tlx, brx))
-        y0, y1 = sorted((tly, bry))
-        new_rect = Rectangle(
-            id=rectangle.id,
-            category_id=rectangle.category_id,
-            topleft=Point(x0, y0),
-            bottomright=Point(x1, y1),
-        )
-        self.document.replace_shape(index, new_rect)
         self.update()
 
     def move_rectangle(self, new_pos):
-        """Translate the selected shape by the mouse delta (single undo step)."""
-        if self.selected_object is None:
-            return
-        index = self.undo_tree.find_shape_index_by_id_or_none(self.selected_object)
-        if index is None:
+        """Translate the dragged shape in place by the mouse delta (committed as
+        one undo step on release)."""
+        if self._drag_index is None:
             return
         dx = new_pos.x() - self.last_mouse_position.x()
         dy = new_pos.y() - self.last_mouse_position.y()
-        self.document.move_shape(index, dx, dy)
+        self.undo_tree.shapes[self._drag_index].move(dx, dy)
         self.update()
 
     def select_polygon(self, pos):

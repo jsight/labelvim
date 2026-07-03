@@ -75,6 +75,45 @@ def test_no_edit_returns_false(app):
     assert cw.commit_vertex_edit() is False
 
 
+def test_mouse_vertex_drag_coalesces_to_one_undo_step(app):
+    from PyQt5.QtCore import QPoint
+
+    cw = _canvas(app)  # rect id=0, topleft (10,10)
+    cw._begin_drag(0)
+    for xy in (20, 25, 30):  # a drag = many move events
+        cw.move_vertex(0, QPoint(xy, xy))
+    assert _tl(cw) == (30, 30)  # applied live during the drag
+    cw._commit_drag()
+    assert _tl(cw) == (30, 30)
+    cw.undo()  # a single undo reverts the whole drag
+    assert _tl(cw) == (10, 10)
+    assert len(cw.undo_tree.shapes) == 1  # shape still there (only the drag was undone)
+
+
+def test_mouse_move_drag_coalesces_to_one_undo_step(app):
+    from PyQt5.QtCore import QPoint
+
+    cw = _canvas(app)
+    cw.last_mouse_position = QPoint(0, 0)
+    cw._begin_drag(0)
+    cw.move_rectangle(QPoint(5, 5))
+    cw.last_mouse_position = QPoint(5, 5)
+    cw.move_rectangle(QPoint(8, 8))
+    cw.last_mouse_position = QPoint(8, 8)
+    assert _tl(cw) == (18, 18)  # moved +8 total, live
+    cw._commit_drag()
+    cw.undo()
+    assert _tl(cw) == (10, 10)
+
+
+def test_click_without_movement_records_no_command(app):
+    cw = _canvas(app)  # the only command so far is the add in _canvas()
+    cw._begin_drag(0)
+    cw._commit_drag()  # no movement -> no undo entry
+    cw.undo()  # so this undoes the add, not a phantom drag
+    assert len(cw.undo_tree.shapes) == 0
+
+
 def test_status_text_reflects_selection_and_vertex(app):
     cw = _canvas(app)  # rect id=0 category_id=0, selected_object=0
     cw.label_list = ["screen"]
