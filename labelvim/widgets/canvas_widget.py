@@ -444,9 +444,10 @@ class CanvasWidget(QLabel):
                             else:
                                 self.select_polygon(new_map)
                             logger.debug(f"Selected Rectangle: {self.selected_object}")
-                        # self.selected_object = self.select_polygon(new_map)
-                        # if self.selected_object is not None:
-                        #     self.polygon_move_point = new_map
+                        # Snapshot the shape so the whole drag (vertex move,
+                        # edge add-point, or whole-move) is one undo step.
+                        if self.selected_object is not None:
+                            self._begin_drag(self.selected_object)
         self.update()
 
     def mouseMoveEvent(self, event):
@@ -517,13 +518,12 @@ class CanvasWidget(QLabel):
                 self.start_point = None
                 self.end_point = None
             elif self.annotation_type == ANNOTATION_TYPE.POLYGON:
-                if (
-                    self.selected_vertex is not None
-                    and self.annotation_mode == ANNOTATION_MODE.EDIT
-                ):
+                if self.annotation_mode == ANNOTATION_MODE.EDIT:
+                    # One undo step for the whole drag (vertex / add-point / move).
+                    self._commit_drag()
                     self.selected_vertex = None
-                elif self.moving_object and self.annotation_mode == ANNOTATION_MODE.EDIT:
                     self.moving_object = False
+                    self.line_segment = None
                 self.last_mouse_position = None
         # self.selected_object = None
         # self.selected_object_subset = None
@@ -686,7 +686,10 @@ class CanvasWidget(QLabel):
             self._pending_shape = ("bbox", bbox)
             self._show_label_picker()
         elif poly:
-            self._pending_shape = ("poly", poly)
+            # Copy the points: the caller (mousePressEvent) clears
+            # self.polygon_points right after this call, which would otherwise
+            # empty the very list we stash and yield a 0-vertex polygon.
+            self._pending_shape = ("poly", list(poly))
             self._show_label_picker()
 
     def _show_label_picker(self):
@@ -885,23 +888,6 @@ class CanvasWidget(QLabel):
         else:
             return None, None
 
-    def get_selected_object(self):
-        """
-        Get the selected rectangle.
-
-        Returns:
-
-            dict: The selected rectangle.
-        """
-        # for rect in self.rectangles:
-        for rect in self.undo_tree.shapes:
-            if not isinstance(rect, Rectangle):
-                continue
-            if rect.id == self.selected_object:
-                logger.debug("%s %s", "returning selected:", rect)
-                return rect
-        return None
-
     def _begin_drag(self, shape_id):
         """Start a mouse-drag edit of a shape: snapshot it so the whole drag
         commits as a single undo step on release (see _commit_drag)."""
@@ -965,102 +951,54 @@ class CanvasWidget(QLabel):
         self.update()
 
     def select_polygon(self, pos):
-        selected_polygon = []
-        selected_polygon_id = []
-        selected_polygon_id_subset = []
-        # TODO(gur-c5ee6b23.3 follow-up): mouse polygon selection still uses the
-        # old dict-based store, which no longer exists; reimplement against
-        # self.document.shapes. Until then this is a no-op.
-        for polygons in []:
-            for poly_idx, polygon in enumerate(polygons["polygon"]):
-                poly = polygon.copy()
-                # polygon_points = [QPoint(point.x(), point.y()) for point in poly]
-                # polygon_points = [QPoint(point[0] * self.scale_factor, point[1] * self.scale_factor) for point in polygon_points]
-                polygon_obj = QPolygon(poly)
-                if polygon_obj.containsPoint(pos, Qt.OddEvenFill):
-                    selected_polygon.append(polygon)
-                    selected_polygon_id.append(polygons["id"])
-                    selected_polygon_id_subset.append(poly_idx)
-        if selected_polygon:
-            closest_polygon = min(
-                selected_polygon,
-                key=lambda polygon: self.calculate_polygon_area(polygon),
-            )
-            self.selected_object = selected_polygon_id[selected_polygon.index(closest_polygon)]
+        """Select the smallest model polygon containing ``pos`` (original coords)."""
+        target = Point(pos.x(), pos.y())
+        containing = [
+            shape
+            for shape in self.undo_tree.shapes
+            if isinstance(shape, Polygon) and shape.contains(target)
+        ]
+        if containing:
+            closest = min(containing, key=lambda s: s.bbox.width * s.bbox.height)
+            self.selected_object = closest.id
             logger.debug("%s %s", "Selecting polygon:", self.selected_object)
-            self.selected_object_subset = selected_polygon_id_subset[
-                selected_polygon.index(closest_polygon)
-            ]
-
-            # print(f"Selected Polygon: {selected_polygon}")
-            # closest_polygon = min(selected_polygon, key=lambda polygon: self.calculate_polygon_area(polygon))
-            # print(f"Selected Polygon: {closest_polygon}")
-            # print(f"Selected Polygon: {closest_polygon['id']}")
-            # self.selected_object = closest_polygon["id"]
-
-    @staticmethod
-    def calculate_polygon_area(polygon):
-        area = 0
-        # polygon = QPolygon(polygon['polygon'])
-        polygon = QPolygon(polygon)
-        for i in range(polygon.count()):
-            j = (i + 1) % polygon.count()
-            area += polygon.point(i).x() * polygon.point(j).y()
-            area -= polygon.point(j).x() * polygon.point(i).y()
-        return abs(area) / 2
 
     def move_polygon(self, new_pos):
-        if self.selected_object is not None:
-            poly = self.get_selected_object()
-            dx = new_pos.x() - self.last_mouse_position.x()
-            dy = new_pos.y() - self.last_mouse_position.y()
-
-            for i, point in enumerate(poly["polygon"][self.selected_object_subset]):
-                poly["polygon"][self.selected_object_subset][i] = QPoint(
-                    point.x() + dx, point.y() + dy
-                )
-            for poly_idx, polygon in enumerate(poly["polygon"]):
-                if poly_idx == 0:
-                    bbox = QPolygon(polygon).boundingRect()
-                else:
-                    bbox = bbox.united(QPolygon(polygon).boundingRect())
-            # bbox = QPolygon(poly['polygon'][self.selected_object_subset]).boundingRect()
-            poly["bbox"] = [bbox.x(), bbox.y(), bbox.width(), bbox.height()]
-            self.last_mouse_position = new_pos
+        """Translate the dragged polygon in place by the mouse delta (committed
+        as one undo step on release, like move_rectangle)."""
+        if self._drag_index is None or self.last_mouse_position is None:
+            return
+        shape = self.undo_tree.shapes[self._drag_index]
+        if not isinstance(shape, Polygon):
+            return
+        dx = new_pos.x() - self.last_mouse_position.x()
+        dy = new_pos.y() - self.last_mouse_position.y()
+        shape.move(dx, dy)
+        self.last_mouse_position = new_pos
+        self.update()
 
     def move_polygon_vertex(self, new_pos):
-        if self.selected_object is not None:
-            poly = self.get_selected_object()
-            if poly is not None:
-                poly["polygon"][self.selected_object_subset][self.selected_vertex] = new_pos
-
-                for poly_idx, polygon in enumerate(poly["polygon"]):
-                    if poly_idx == 0:
-                        bbox = QPolygon(polygon).boundingRect()
-                    else:
-                        bbox = bbox.united(QPolygon(polygon).boundingRect())
-                    # bbox = QPolygon(poly['polygon'][self.selected_object_subset]).boundingRect()
-                    poly["bbox"] = [bbox.x(), bbox.y(), bbox.width(), bbox.height()]
-
-                # bbox = QPolygon(poly['polygon']).boundingRect()
-                # print(f"Bounding Box in mover polygon vertex: {bbox}")
-                # poly['bbox'] = [bbox.x(), bbox.y(), bbox.width(), bbox.height()]
-                # print(f"Bounding Box in mover polygon vertex: {poly['bbox']}")
+        """Move the selected polygon vertex to ``new_pos``, in place."""
+        if self._drag_index is None or self.selected_vertex is None:
+            return
+        shape = self.undo_tree.shapes[self._drag_index]
+        if not isinstance(shape, Polygon):
+            return
+        if 0 <= self.selected_vertex < len(shape.points):
+            shape.points[self.selected_vertex].x = new_pos.x()
+            shape.points[self.selected_vertex].y = new_pos.y()
+            self.update()
 
     def add_point_to_polygon(self, new_pos):
-        if self.selected_object is not None:
-            poly = self.get_selected_object()
-            if poly is not None:
-                poly["polygon"][self.selected_object_subset].insert(self.line_segment[1], new_pos)
-                for poly_idx, polygon in enumerate(poly["polygon"]):
-                    if poly_idx == 0:
-                        bbox = QPolygon(polygon).boundingRect()
-                    else:
-                        bbox = bbox.united(QPolygon(polygon).boundingRect())
-                    # bbox = QPolygon(poly['polygon'][self.selected_object_subset]).boundingRect()
-                    poly["bbox"] = [bbox.x(), bbox.y(), bbox.width(), bbox.height()]
-                # bbox = QPolygon(poly['polygon']).boundingRect()
-                # poly['bbox'] = [bbox.x(), bbox.y(), bbox.width(), bbox.height()]
+        """Insert a new vertex on the hit edge at ``new_pos``, in place."""
+        if self._drag_index is None or self.line_segment is None:
+            return
+        shape = self.undo_tree.shapes[self._drag_index]
+        if not isinstance(shape, Polygon):
+            return
+        insert_at = self.line_segment[1]
+        shape.points.insert(insert_at, Point(new_pos.x(), new_pos.y()))
+        self.update()
 
     # def remove_point_from_polygon(self, point_index):
     #     if self.selected_object is not None:
@@ -1070,27 +1008,40 @@ class CanvasWidget(QLabel):
     #             bbox = QPolygon(poly['polygon']).boundingRect()
     #             poly['bbox'] = [bbox.x(), bbox.y(), bbox.width(), bbox.height()]
 
-    def find_polygon_to_edit(self, click_pos):
-        # TODO(gur-c5ee6b23.3 follow-up): legacy dict-based polygon store removed;
-        # reimplement against self.document.shapes. No-op for now.
-        for polygons in []:
-            polygon = polygons["polygon"]
-            # polygon_obj = QPolygon(poly)
+    def find_polygon_to_edit(self, point):
+        """Hit-test the model's polygons for a vertex or an edge near ``point``.
 
-            # Check if click_pos is near any vertex of the polygon
-            for poly_idx, poly in enumerate(polygon):
-                for i, point in enumerate(poly):
-                    if CanvasWidget.distance(QPoint(point.x(), point.y()), click_pos) <= 10:
-                        return polygons["id"], poly_idx, i, None
-
-                # Check if click_pos is on any line segment of the polygon
-                for i, point in enumerate(poly):
-                    v = QPoint(point.x(), point.y())
-                    w = QPoint(poly[(i + 1) % len(poly)].x(), poly[(i + 1) % len(poly)].y())
-                    # print(f"V: {v}, W: {w}")
-                    # print(f"Click Pos: {click_pos}")
-                    if CanvasWidget.distance_to_line_segment(click_pos, v, w) <= 10:
-                        return polygons["id"], poly_idx, None, (i, (i + 1) % len(poly))
+        ``point`` is in original-image coordinates (already mapped), or None.
+        Returns ``(shape_id, subset, vertex_index, line_segment)``:
+          - vertex hit: ``(id, None, vertex_index, None)``
+          - edge hit:   ``(id, None, None, (i, j))`` -> a drag inserts a vertex
+          - nothing:    ``(None, None, None, None)`` -> caller falls back to a
+            containment-based whole-shape move (see ``select_polygon``)
+        ``subset`` is always None (single-ring polygons); kept for signature
+        stability with the caller's 4-tuple unpack.
+        """
+        if point is None:
+            return None, None, None, None
+        model_point = Point(point.x(), point.y())
+        # Vertices win over edges; check the topmost shape first.
+        for shape in reversed(self.undo_tree.shapes):
+            if not isinstance(shape, Polygon):
+                continue
+            vertex_index = shape.vertex_index_near(model_point, 10)
+            if vertex_index is not None:
+                return shape.id, None, vertex_index, None
+        # No vertex hit: look for an edge to insert a point on.
+        for shape in reversed(self.undo_tree.shapes):
+            if not isinstance(shape, Polygon):
+                continue
+            pts = shape.points
+            n = len(pts)
+            for i in range(n):
+                v = QPoint(int(pts[i].x), int(pts[i].y))
+                w = QPoint(int(pts[(i + 1) % n].x), int(pts[(i + 1) % n].y))
+                if CanvasWidget.distance_to_line_segment(point, v, w) <= 8:
+                    return shape.id, None, None, (i, (i + 1) % n)
+        return None, None, None, None
 
         return None, None, None, None
 
