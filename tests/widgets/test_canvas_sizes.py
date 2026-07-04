@@ -79,18 +79,39 @@ def test_load_scale_paint_roundtrip(app, tmp_path, name, w, h):
     assert abs(back.y() - cy) <= tol
 
 
-def test_unreadable_image_does_not_crash(app, tmp_path):
+def test_unreadable_image_resets_to_clean_state(app, tmp_path):
+    # Load a good image first, then a corrupt one: the corrupt load must not
+    # leave the previous image on screen, and must clear the pixmaps so the
+    # window's `original_pixmap is None` guards fire.
+    good = str(tmp_path / "good.png")
+    _make_image(good, 100, 100)
     bad = tmp_path / "corrupt.jpg"
     bad.write_bytes(b"not an image")
-    cw = _canvas(app, 1, 1)
+    cw = _canvas(app, 100, 100)
+    cw.load_image(good)
+    assert cw.current_pixmap is not None
+
     cw.load_image(str(bad))  # must not raise
-    # A null pixmap is expected; paint must still be safe.
-    cw.grab()
+    assert cw.original_pixmap is None
+    assert cw.current_pixmap is None
+    cw.grab()  # paint must still be safe with no image
 
 
-def test_empty_file_does_not_crash(app, tmp_path):
+def test_empty_file_resets_to_clean_state(app, tmp_path):
     empty = tmp_path / "empty.png"
     empty.write_bytes(b"")
     cw = _canvas(app, 1, 1)
     cw.load_image(str(empty))  # must not raise
+    assert cw.original_pixmap is None
+    assert cw.current_pixmap is None
     cw.grab()
+
+
+def test_unreadable_image_emits_notify(app, tmp_path):
+    bad = tmp_path / "corrupt.jpg"
+    bad.write_bytes(b"not an image")
+    cw = _canvas(app, 1, 1)
+    seen = []
+    cw.notify.connect(lambda message, level: seen.append((level, message)))
+    cw.load_image(str(bad))
+    assert seen and seen[-1][0] == "error"

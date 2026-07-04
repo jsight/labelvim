@@ -98,6 +98,9 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.canvas_widget.scale_factor_slot.connect(self.update_zoom_label)
         # Canvas shape changes -> object list rebuilds itself directly.
         self.canvas_widget.shapes_changed.connect(self.ObjectLabelListWidget.set_shapes)
+        # Transient canvas notices (e.g. "box too small", "could not load image")
+        # surface through the non-blocking flash overlay.
+        self.canvas_widget.notify.connect(self.flash)
         # Status bar: live cursor / selection / vertex / step summary from the canvas.
         self.statusInfoLabel = QtWidgets.QLabel("")
         self.statusbar.addWidget(self.statusInfoLabel, 1)

@@ -1,5 +1,6 @@
 import copy
 import logging
+import os
 from enum import Enum
 
 from PyQt5 import QtCore
@@ -32,6 +33,13 @@ class CanvasWidget(QLabel):
     btn_action_slot = pyqtSignal(Enum)  # annotation-mode change
     scale_factor_slot = pyqtSignal(float)  # scale factor -> zoom label
     status_slot = pyqtSignal(str)  # status-bar summary line
+    notify = pyqtSignal(str, str)  # transient (message, level) -> window.flash
+
+    # A drawn box must span at least this many *displayed* pixels to count as a
+    # deliberate box rather than an accidental click. Measuring in screen space
+    # (via scale_factor) keeps it usable at any zoom and on tiny images, where
+    # the old fixed 20-original-pixel threshold made boxes impossible to draw.
+    MIN_BOX_DISPLAY_PX = 5
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -197,10 +205,19 @@ class CanvasWidget(QLabel):
         self.annotation_mode = ANNOTATION_MODE.NONE
         self.scale_factor = 1.0
         # print(f"File Name: {file_name}")
-        self.original_pixmap = QPixmap(file_name)
-        if self.original_pixmap.isNull():
+        pixmap = QPixmap(file_name)
+        if pixmap.isNull():
+            # A null pixmap is a real failure: reset to a clean no-image state so
+            # the previous image isn't left on screen and downstream `is None`
+            # guards (e.g. LabelVim.__create_object) actually fire.
             logger.debug(f"Failed to load image: {file_name}")
+            self.original_pixmap = None
+            self.current_pixmap = None
+            self.update()
+            self._emit_status()
+            self.notify.emit(f"Could not load image: {os.path.basename(file_name)}", "error")
             return
+        self.original_pixmap = pixmap
         self.current_pixmap = self.original_pixmap.copy()
         # Use the parent scroll area's viewport size for initial scaling
         parent_scroll = self.parentWidget()
@@ -352,9 +369,19 @@ class CanvasWidget(QLabel):
                 if end_point:
                     self.end_point = end_point
                     rect = QRect(self.start_point, self.end_point).normalized()
-                    if self.distance(self.start_point, self.end_point) > 20:
+                    if self._box_meets_min_size(self.start_point, self.end_point):
                         self.update_rectangle(bbox=rect)
+                    else:
+                        self.notify.emit("Box too small — draw a larger box", "warning")
         self.update()
+
+    def _box_meets_min_size(self, start, end):
+        """Whether a drawn box spans enough *displayed* pixels to be deliberate.
+
+        Screen-space (scale-aware) so small boxes are drawable when zoomed in
+        and boxes work on tiny images, unlike the old fixed original-pixel gate.
+        """
+        return self.distance(start, end) * self.scale_factor >= self.MIN_BOX_DISPLAY_PX
 
     ## Start of mouse events
     def mousePressEvent(self, event):
@@ -504,8 +531,10 @@ class CanvasWidget(QLabel):
                     if end_point:
                         self.end_point = end_point
                         rect = QRect(self.start_point, self.end_point).normalized()
-                        if self.distance(self.start_point, self.end_point) > 20:
+                        if self._box_meets_min_size(self.start_point, self.end_point):
                             self.update_rectangle(bbox=rect)
+                        else:
+                            self.notify.emit("Box too small — draw a larger box", "warning")
                 elif (
                     self.selected_vertex is not None
                     and self.annotation_mode == ANNOTATION_MODE.EDIT
