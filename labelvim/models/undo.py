@@ -95,11 +95,14 @@ class UndoTree:
         self.clear()
 
     def clear(self) -> None:
-        initial_state: list[Shape] = []
-        initial_node = UndoTreeNode(state=initial_state, command=None, parent=None)
-        self.shapes = initial_state
-        self.undo_tree = initial_node
-        self.current_node = initial_node
+        # self.shapes and the root node's snapshot must be DISTINCT lists.
+        # Commands mutate self.shapes in place (append/pop); if the root node
+        # shared that same list object, those mutations would corrupt the root
+        # snapshot, and undoing back to the root would restore a polluted state
+        # (never truly empty, and a boundary undo could re-add a shape).
+        self.shapes = []
+        self.undo_tree = UndoTreeNode(state=[], command=None, parent=None)
+        self.current_node = self.undo_tree
 
     def execute_command(self, command: Command) -> None:
         # Execute the command

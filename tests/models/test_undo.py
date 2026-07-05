@@ -172,3 +172,43 @@ def test_find_shape_index_by_id_or_none():
     img.add_shape(_int_rect(id=7))
     assert img.find_shape_index_by_id_or_none(7) == 0
     assert img.find_shape_index_by_id_or_none(999) is None
+
+
+def test_undo_all_adds_returns_to_empty():
+    # Regression: clear() used to alias self.shapes with the root node's
+    # snapshot, so in-place command mutations corrupted the root state and undo
+    # could never reach empty (a boundary undo even re-added a shape).
+    img = UndoTree()
+    for i in range(3):
+        img.add_shape(_int_rect(id=i))
+    assert [s.id for s in img.shapes] == [0, 1, 2]
+    assert img.undo() and [s.id for s in img.shapes] == [0, 1]
+    assert img.undo() and [s.id for s in img.shapes] == [0]
+    assert img.undo() and img.shapes == []  # reaches empty, not [0, 1]
+    assert img.undo() is False  # past the root is a no-op, not a phantom redo
+    assert img.shapes == []
+
+
+def test_undo_redo_full_cycle_three_ops():
+    img = UndoTree()
+    for i in range(3):
+        img.add_shape(_int_rect(id=i))
+    for _ in range(3):
+        img.undo()
+    assert img.shapes == []
+    for _ in range(3):
+        img.redo()
+    assert [s.id for s in img.shapes] == [0, 1, 2]
+
+
+def test_mixed_ops_fully_undo_to_empty():
+    img = UndoTree()
+    img.add_shape(_int_rect(id=0))
+    img.add_shape(_int_rect(id=1))
+    img.move_shape(0, 5, 5)
+    img.replace_shape(1, _int_rect(id=9, x2=99))
+    img.remove_shape(0)
+    for _ in range(5):
+        img.undo()
+    assert img.shapes == []
+    assert img.undo() is False
