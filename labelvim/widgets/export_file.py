@@ -806,19 +806,25 @@ class ExportFileDialog(QDialog):
         self._update_train_test_validation()
 
     def _read_config(self):
+        # Read config.yaml defensively: a missing file, an empty/malformed file,
+        # or a config that predates the annotation_type key must not crash the
+        # export dialog — fall back to the defaults set in __init__.
+        self.config: dict = {}
         try:
             with open(os.path.join(self.save_dir, self.config_file)) as file:
-                self.config = yaml.safe_load(file)
-                # print(self.config)
-                self.task_type = ANNOTATION_TYPE(self.config["annotation_type"])
-                # self.include_mask = self.config['save_mask']
-                self.file_list = [
-                    file for file in os.listdir(self.save_dir) if file.endswith(".json")
-                ]
-                # print(self.file_list)
-                logger.debug(f"file length: {len(self.file_list)}")
+                self.config = yaml.safe_load(file) or {}
         except FileNotFoundError:
-            logger.debug("File not found")
+            logger.debug("Config file not found; using export defaults")
+
+        stored_type = self.config.get("annotation_type")
+        if stored_type is not None:
+            try:
+                self.task_type = ANNOTATION_TYPE(stored_type)
+            except ValueError:
+                logger.debug("Unknown annotation_type %r in config; using default", stored_type)
+
+        self.file_list = [f for f in os.listdir(self.save_dir) if f.endswith(".json")]
+        logger.debug(f"file length: {len(self.file_list)}")
 
     def _init_ui(self):
         """Initialize the UI components."""
