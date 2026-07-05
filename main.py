@@ -84,7 +84,12 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         self.actionZoom_Out.triggered.connect(self.__zoom_out)
         self.actionFit_Windows.triggered.connect(self.__zoom_fit)
         self.actionExport.triggered.connect(self.__handle_export)
-        # self.actionAnnotation_Type.triggered.connect(self.show_task_selection_dialog)
+        # Edit -> Annotation Type: re-open the detection/segmentation chooser.
+        self.actionAnnotation_Type.triggered.connect(self.__change_annotation_type)
+        # Fill / Line Color are not implemented; hide them rather than leave dead
+        # menu entries that silently do nothing when clicked.
+        self.actionFill.setVisible(False)
+        self.actionLine_Color.setVisible(False)
 
         self.show()
         self.__disable_btn_at_start()
@@ -268,6 +273,13 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.annotation_type = annotation_type
                 self.LabelWidget.update_annotation_type(self.annotation_type)
                 self.canvas_widget.update_annotation_type(self.annotation_type)
+
+    def __change_annotation_type(self):
+        """Edit -> Annotation Type menu: re-choose detection vs segmentation and
+        persist the choice to the save directory's config (if one is open)."""
+        self.show_task_selection_dialog()
+        if self.save_dir:
+            self.config.update(self.annotation_type.value, self.save_mask, self.include_img)
 
     def __load_directory(self):
         """
