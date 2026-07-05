@@ -19,6 +19,7 @@ from labelvim.utils.label_list_reader import label_list_reader
 from labelvim.utils.utils import get_image_list, return_mattching
 from labelvim.widgets.export_file import ExportFileDialog
 from labelvim.widgets.flash import FlashOverlay
+from labelvim.widgets.shortcuts_dialog import ShortcutsDialog
 from labelvim.widgets.task_selection import TaskSelectionDialog
 from layout import Ui_MainWindow
 
@@ -90,6 +91,13 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         # menu entries that silently do nothing when clicked.
         self.actionFill.setVisible(False)
         self.actionLine_Color.setVisible(False)
+        # Populate the (previously empty) Help menu with a shortcuts reference.
+        self._shortcuts_dialog = None
+        self._shown_hint = False  # one-time "press ? for shortcuts" nudge
+        self.actionKeyboard_Shortcuts = QtWidgets.QAction("Keyboard Shortcuts", self)
+        self.actionKeyboard_Shortcuts.setShortcut("?")
+        self.actionKeyboard_Shortcuts.triggered.connect(self.__show_shortcuts)
+        self.menuHelp.addAction(self.actionKeyboard_Shortcuts)
 
         self.show()
         self.__disable_btn_at_start()
@@ -281,6 +289,14 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
         if self.save_dir:
             self.config.update(self.annotation_type.value, self.save_mask, self.include_img)
 
+    def __show_shortcuts(self):
+        """Help -> Keyboard Shortcuts (and the '?' key): show the cheat sheet."""
+        if self._shortcuts_dialog is None:
+            self._shortcuts_dialog = ShortcutsDialog(self)
+        self._shortcuts_dialog.show()
+        self._shortcuts_dialog.raise_()
+        self._shortcuts_dialog.activateWindow()
+
     def __load_directory(self):
         """
         Called when the OpenDirBtn is clicked. This is a
@@ -301,6 +317,9 @@ class LabelVim(QtWidgets.QMainWindow, Ui_MainWindow):
             self.listCountLabel.setText(f"Loaded {len(self.img_list)} images")
             if self.img_file_list:
                 self.__enable_btn_after_load()
+                if not self._shown_hint:
+                    self.flash("Press I to edit · C to create · ? for shortcuts", "info")
+                    self._shown_hint = True
             else:
                 self.__disable_btn_at_start()
 
