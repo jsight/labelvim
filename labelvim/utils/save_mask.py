@@ -45,24 +45,25 @@ random_colors_palette = np.array(
 
 def save_mask(mask, save_dir, file_name):
     """
-    Save the mask to the save directory as a PNG file.
+    Save the mask to ``save_dir/mask/`` as a lossless PNG.
+
+    The mask must be lossless: it encodes categories as palette colours (and,
+    for the visualization, drawn boxes/labels). Saving it under the source
+    image's ``.jpg`` name would JPEG-encode it and corrupt those colours/edges,
+    so the extension is always forced to ``.png``.
 
     Args:
         mask (np.ndarray): The mask to save.
         save_dir (str): The directory to save the mask to.
-        file_name (str): The name of the mask file.
-
-    Example:
-        >>> mask = np.zeros((100, 100), dtype=np.uint8)
-        >>> save_mask(mask, "data", "mask.png")
+        file_name (str): The source file name; its stem is reused with a .png
+            extension.
     """
-    mask = Image.fromarray(mask)
-    os.makedirs(os.path.join(save_dir, "mask"), exist_ok=True)
-    logger.debug(os.path.join(save_dir, "mask", file_name))
-    logger.debug(os.listdir(os.path.join(save_dir, "mask")))
-    logger.debug(os.listdir(save_dir))
-    # os.listdir(os.path.join(save_dir, 'mask'))
-    mask.save(os.path.join(save_dir, "mask", file_name))
+    file_name = os.path.splitext(file_name)[0] + ".png"
+    mask_dir = os.path.join(save_dir, "mask")
+    os.makedirs(mask_dir, exist_ok=True)
+    out_path = os.path.join(mask_dir, file_name)
+    logger.debug("writing mask: %s", out_path)
+    Image.fromarray(mask).save(out_path)
 
 
 def create_mask(
