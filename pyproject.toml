@@ -1,0 +1,70 @@
+[project]
+name = "labelvim"
+version = "0.1.0"
+description = "A PyQt5 image annotation tool with vim-like keyboard shortcuts"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "opencv-python>=4.12.0.88",
+    "pillow>=11.3.0",
+    "pyqt5>=5.15.11",
+    "pyyaml>=6.0.2",
+    "tqdm>=4.67.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "ruff>=0.9.0",
+    "mypy>=1.15.0",
+    "pre-commit>=4.0.0",
+    "types-PyYAML>=6.0",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+extend-exclude = [".venv", "layout.py", "geminitest", "geminitest_onlyscreen"]
+
+[tool.ruff.lint]
+# Start lenient so the linter is adoptable on a legacy codebase, then tighten.
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (undefined names, unused imports, etc.)
+    "W",   # pycodestyle warnings
+    "I",   # isort (import ordering)
+    "UP",  # pyupgrade (modern syntax, e.g. list[str] over List[str])
+    "B",   # flake8-bugbear (likely bugs)
+]
+ignore = [
+    "E501",  # line too long — formatter handles wrapping; don't fail the build on it
+    "E741",  # ambiguous variable names (l, I) — present in existing code
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Star imports are pervasive in the Qt widgets today; allow until they're cleaned up.
+"labelvim/widgets/*.py" = ["F403", "F405"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["labelvim"]
+exclude = '(^|/)(\.venv|layout\.py|geminitest)'
+explicit_package_bases = true
+namespace_packages = true
+# Lenient baseline: type-check what's annotated without forcing annotations everywhere yet.
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+# Tighten these over time as annotations are added:
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+# models/ is fully typed and mypy-clean; enforce strictness there so it doesn't
+# regress (it's the core Phase 2 builds on). utils/ is clean at the current level
+# but not yet fully annotated; widgets/ stay lenient until the Phase 2/3 rewrites
+# (most of their remaining errors are PyQt5 enum-scoping stub friction).
+[[tool.mypy.overrides]]
+module = ["labelvim.models.*"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
